@@ -4,9 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bier</title>
-    <head>
-        
-    </head>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
 </head>
 <body>
     <h1>Bier</h1>
@@ -21,14 +20,25 @@
                 bieren = data; 
                 showBieren();
             })  
-            //.catch(error => console.error('Error fetching data:', error));
+            .catch(error => console.error('Error fetching data:', error));
 
         function showBieren() {
-            let html = "";
+            let html = "<table class='table'>";
+            html += "<thead>";
+            html += "<tr>";   
+            html += "<th scope='col'>Naam</th>";
+            html += "<th scope='col'>Brouwer</th>";
+            html += "</tr>";       
+            html += "</thead>"
+            html += "<tbody>";
             for (let i = 0; i < bieren.length; i++) {
-                html += "<p>"+bieren[i].naam+"</p>";
-                //html += `<li>${bieren[i].soort}</li>`;
+                html += "<tr>";
+                html += `<td>${bieren[i].naam}</td>`;
+                html += `<td>${bieren[i].brouwer}</td>`;
+                html += "</tr>";
             }
+            html += "</tbody>";
+            html += "</table>";
             document.getElementById("bier-list").innerHTML = html;
             console.log("Bieren geladen");
         }
