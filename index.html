@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bier</title>
+    <head>
+        
+    </head>
+</head>
+<body>
+    <h1>Bier</h1>
+    <div id="bier-list" style="border: 1px solid black; padding: 10px; margin: 10px;"></div>
+    <script>
+        let bieren = [];
+
+        fetch("bier.php")
+            .then(res => res.json())
+            .then(data => {
+                console.log(data);
+                bieren = data; 
+                showBieren();
+            })  
+            //.catch(error => console.error('Error fetching data:', error));
+
+        function showBieren() {
+            let html = "";
+            for (let i = 0; i < bieren.length; i++) {
+                html += "<p>"+bieren[i].naam+"</p>";
+                //html += `<li>${bieren[i].soort}</li>`;
+            }
+            document.getElementById("bier-list").innerHTML = html;
+            console.log("Bieren geladen");
+        }
+    </script>
+</body>
+</html>
