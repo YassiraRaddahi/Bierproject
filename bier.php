@@ -22,7 +22,8 @@ try {
 }
 
 // Returning all beers
-function showBeers($dbh) {
+function showBeers($dbh)
+{
     $sql = 'SELECT * FROM bier';
     $stmt = $dbh->prepare($sql);
     $stmt->execute();
@@ -31,64 +32,115 @@ function showBeers($dbh) {
 }
 
 // Returning one beer
-function showBeer($dbh, $id) {
+function showBeer($dbh, $id)
+{
     $sql = 'SELECT * FROM bier WHERE id = :id';
     $stmt = $dbh->prepare($sql);
     $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-    $stmt->execute();
-    $result = $stmt->fetch(PDO::FETCH_ASSOC);
-    return json_encode($result);
+
+    try 
+    {
+        $stmt->execute();
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        http_response_code(200); // success
+
+        if($result != false)
+        {
+            return json_encode($result);
+        }
+        else
+        {
+            return json_encode(["message" => "record does not exist"]);
+        }    
+       
+    }
+    catch(PDOException $e)
+    {
+        http_response_code(400); //bad request
+        return json_encode(["error" => "invalid request", "message" => $e->getMessage()]);
+    }
+
 }
 
 // Ik moet nog validatie toepassen
-function createBeer($dbh) {
+function createBeer($dbh)
+{
     $raw_data = file_get_contents("php://input");
     $data = json_decode($raw_data, true);
 
     $sql = 'INSERT INTO bier (`naam`, `brouwer`, `type`, `gisting`, `perc`, `inkoop_prijs`)
     VALUES (:naam, :brouwer, :type, :gisting, :perc, :inkoop_prijs);';
     $stmt = $dbh->prepare($sql);
-   
+
     $stmt->bindValue(':naam', $data['naam'], PDO::PARAM_STR);
     $stmt->bindValue(':brouwer', $data['brouwer'], PDO::PARAM_STR);
     $stmt->bindValue(':type', $data['type'], PDO::PARAM_STR);
     $stmt->bindValue(':gisting', $data['gisting'], PDO::PARAM_STR);
     $stmt->bindValue(':perc', (float)$data['perc']);
     $stmt->bindValue(':inkoop_prijs', (float)$data['inkoop_prijs']);
-    
-    try
-    {
+
+    try {
         $stmt->execute();
         http_response_code(201); // Created
-        return json_encode(['status' => 'ok', 'id' => (int)$dbh->lastInsertId()]);
-    }
-    catch (PDOException $e)
-    {
-        http_response_code(response_code: 400); // Bad Request
+        return json_encode(['status' => 'created successfully', 'id' => (int)$dbh->lastInsertId()]);
+    } catch (PDOException $e) {
+        http_response_code(400); // Bad Request
         return json_encode(['error' => 'insert failed', 'message' => $e->getMessage()]);
     }
+}
 
+function deleteBeer($dbh, $id)
+{
+    $sql = 'DELETE FROM bier WHERE id = :id';
+    $stmt = $dbh->prepare($sql);
+    $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+
+    try {
+        $stmt->execute();
+        $rowsDeleted = $stmt->rowCount();
+        http_response_code(200) ; // success
+
+        if($rowsDeleted > 0)
+        {
+            return json_encode(["message" => "deleted successfully", "id" => $id]);
+        }
+        else
+        {
+            return json_encode(["message" => "record does not exist"]);
+        }
+        
+    }
+    catch(PDOException $e)
+    {
+        http_response_code(400) ; // Bad Request
+        return json_encode(["error" => "deletion failed", "message" => $e->getMessage()]);
+    }
+    
+   
 }
 
 $method = $_SERVER['REQUEST_METHOD'];
 //echo json_encode(["method" => $method]);
 
-if($method == "GET")
-{
-    //echo json_encode(["method" => $method]);
-    if ($id > 0)
-    {
-      echo showBeer($dbh, $id);
-        
-    }
-    else
-    {
-       echo showBeers($dbh);
-    }
-}
-if($method == "POST")
-{
-    echo createBeer($dbh);
-}
 
-?>
+switch ($method) {
+    case "GET":
+        if ($id > 0) {
+            echo showBeer($dbh, $id);
+        } else {
+            echo showBeers($dbh);
+        }
+        break;
+    case "POST":
+        echo createBeer($dbh);
+        break;
+    case "PUT":
+        break;
+    case "PATCH":
+        break;
+    case "DELETE":
+        if ($id > 0) {
+            echo showBeer($dbh, $id);
+        }
+        break;
+}

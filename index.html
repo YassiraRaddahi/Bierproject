@@ -1,47 +1,63 @@
 <!DOCTYPE html>
 <html lang="nl">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bier</title>
     <link rel="stylesheet" href="css/style.css">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
 </head>
+
 <body>
-    <h1>Bier</h1>
-    <div id="bier-list" style="border: 1px solid black; padding: 10px; margin: 10px;"></div>
-    <script>
-        let bieren = [];
+    <div class="container">
+        <div class="row">
+            <div class="col-lg">
+                <h1 id="title">The Belgian Beer Company - <i>We Like Beer</i></h1>
+                <div id="bier-list"></div>
+                <script>
+                    // Ik kan proberen de functionaliteit van het tonen 
+                    // van bieren algemener te maken, zodat ik er elke 
+                    // andere tabel mee in kan laden
+                    let data = [];
 
-        fetch("bier.php")
-            .then(res => res.json())
-            .then(data => {
-                console.log(data);
-                bieren = data; 
-                showBieren();
-            })  
-            .catch(error => console.error('Error fetching data:', error));
+                    fetch("bier.php")
+                        .then(res => res.json())
+                        .then(fetched_data => {
+                            console.log(fetched_data);
+                            data = fetched_data;
+                            showTable(data);
+                        })
+                        .catch(error => console.error('Error fetching data:', error));
 
-        function showBieren() {
-            let html = "<table class='table'>";
-            html += "<thead>";
-            html += "<tr>";   
-            html += "<th scope='col'>Naam</th>";
-            html += "<th scope='col'>Brouwer</th>";
-            html += "</tr>";       
-            html += "</thead>"
-            html += "<tbody>";
-            for (let i = 0; i < bieren.length; i++) {
-                html += "<tr>";
-                html += `<td>${bieren[i].naam}</td>`;
-                html += `<td>${bieren[i].brouwer}</td>`;
-                html += "</tr>";
-            }
-            html += "</tbody>";
-            html += "</table>";
-            document.getElementById("bier-list").innerHTML = html;
-            console.log("Bieren geladen");
-        }
-    </script>
+                    function showTable(data) {
+                        let html = "<div>"
+                        html += "<table class='table'>";
+                        html += "<thead>";
+                        html += "<tr>";
+                        html += "<th scope='col'>Naam</th>";
+                        html += "<th scope='col'>Brouwer</th>";
+                        html += "<th scope='col'>Likes</th>";
+                        html += "</tr>";
+                        html += "</thead>"
+                        html += "<tbody>";
+                        for (let i = 0; i < data.length; i++) {
+                            html += "<tr>";
+                            html += `<td>${data[i].naam}</td>`;
+                            html += `<td>${data[i].brouwer}</td>`;
+                            html += `<td>${data[i].likes}</td>`;
+                            html += "</tr>";
+                        }
+                        html += "</tbody>";
+                        html += "</table>";
+                        document.getElementById("bier-list").innerHTML = html;
+                        console.log("Bieren geladen");
+                    }
+                </script>
+            </div>
+        </div>
+    </div>
 </body>
+
 </html>
