@@ -1,5 +1,6 @@
 <?php
-// link std.stegion.nl https://std.stegion.nl/api_rest/api_restA_mysqli.txt
+// link std.stegion.nl mysqli https://std.stegion.nl/api_rest/api_restA_mysqli.txt
+// link std.stegion.nl pdo https://std.stegion.nl/api_rest/api_restA_pdo.txt
 
 header('Content-Type: application/json');
 // echo json_encode(["status" => "ok"]);
@@ -15,42 +16,54 @@ $id = (int) end($segments);
 try {
     $user = 'root';
     $pass = '';
-    $dbh = new PDO('mysql:host=localhost;dbname=biertjes', $user, $pass);
+    $conn = new PDO('mysql:host=localhost;dbname=biertjes', $user, $pass);
 } catch (PDOException $e) {
     print json_encode("Error!: " . $e->getMessage() . "<br/>");
     die();
 }
 
 // Returning all beers
-function showBeers($dbh)
+function showBeers($conn)
 {
     $sql = 'SELECT * FROM bier';
-    $stmt = $dbh->prepare($sql);
-    $stmt->execute();
-    $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    return json_encode($result);
+    $stmt = $conn->prepare($sql);
+
+    try
+    {
+          $stmt->execute();
+          $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
+          http_response_code(200); // success
+          return json_encode($result);
+    }
+    catch(PDOException $e)
+    {
+        http_response_code(404); // not found
+        return json_encode(["message" => "data does not exist", "error" => $e->getMessage()]);
+    }
+  
 }
 
 // Returning one beer
-function showBeer($dbh, $id)
+function showBeer($conn, $id)
 {
     $sql = 'SELECT * FROM bier WHERE id = :id';
-    $stmt = $dbh->prepare($sql);
+    $stmt = $conn->prepare($sql);
     $stmt->bindParam(':id', $id, PDO::PARAM_INT);
 
     try 
     {
         $stmt->execute();
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        http_response_code(200); // success
 
         if($result != false)
         {
+            http_response_code(200); // success
             return json_encode($result);
         }
         else
         {
-            return json_encode(["message" => "record does not exist"]);
+            http_response_code(404); // not found
+            return json_encode(["error" => "record does not exist"]);
         }    
        
     }
@@ -63,14 +76,13 @@ function showBeer($dbh, $id)
 }
 
 // Ik moet nog validatie toepassen
-function createBeer($dbh)
+function updateBeer($conn, $id)
 {
     $raw_data = file_get_contents("php://input");
     $data = json_decode($raw_data, true);
 
-    $sql = 'INSERT INTO bier (`naam`, `brouwer`, `type`, `gisting`, `perc`, `inkoop_prijs`)
-    VALUES (:naam, :brouwer, :type, :gisting, :perc, :inkoop_prijs);';
-    $stmt = $dbh->prepare($sql);
+    $sql = 'UPDATE bier SET `naam` = :naam, `brouwer` = :brouwer, `type` = :type, `gisting` = :gisting, `perc` = :perc, `inkoop_prijs` = :inkoop_prijs WHERE id = :id';
+    $stmt = $conn->prepare($sql);
 
     $stmt->bindValue(':naam', $data['naam'], PDO::PARAM_STR);
     $stmt->bindValue(':brouwer', $data['brouwer'], PDO::PARAM_STR);
@@ -82,17 +94,43 @@ function createBeer($dbh)
     try {
         $stmt->execute();
         http_response_code(201); // Created
-        return json_encode(['status' => 'created successfully', 'id' => (int)$dbh->lastInsertId()]);
+        return json_encode(['status' => 'created successfully', 'id' => (int)$conn->lastInsertId()]);
     } catch (PDOException $e) {
         http_response_code(400); // Bad Request
         return json_encode(['error' => 'insert failed', 'message' => $e->getMessage()]);
     }
 }
 
-function deleteBeer($dbh, $id)
+function createBeer($conn)
+{
+    $raw_data = file_get_contents("php://input");
+    $data = json_decode($raw_data, true);
+
+    $sql = 'INSERT INTO bier (`naam`, `brouwer`, `type`, `gisting`, `perc`, `inkoop_prijs`)
+    VALUES (:naam, :brouwer, :type, :gisting, :perc, :inkoop_prijs);';
+    $stmt = $conn->prepare($sql);
+
+    $stmt->bindValue(':naam', $data['naam'], PDO::PARAM_STR);
+    $stmt->bindValue(':brouwer', $data['brouwer'], PDO::PARAM_STR);
+    $stmt->bindValue(':type', $data['type'], PDO::PARAM_STR);
+    $stmt->bindValue(':gisting', $data['gisting'], PDO::PARAM_STR);
+    $stmt->bindValue(':perc', (float)$data['perc']);
+    $stmt->bindValue(':inkoop_prijs', (float)$data['inkoop_prijs']);
+
+    try {
+        $stmt->execute();
+        http_response_code(201); // Created
+        return json_encode(['status' => 'created successfully', 'id' => (int)$conn->lastInsertId()]);
+    } catch (PDOException $e) {
+        http_response_code(400); // Bad Request
+        return json_encode(['error' => 'insert failed', 'message' => $e->getMessage()]);
+    }
+}
+
+function deleteBeer($conn, $id)
 {
     $sql = 'DELETE FROM bier WHERE id = :id';
-    $stmt = $dbh->prepare($sql);
+    $stmt = $conn->prepare($sql);
     $stmt->bindParam(':id', $id, PDO::PARAM_INT);
 
     try {
@@ -126,13 +164,13 @@ $method = $_SERVER['REQUEST_METHOD'];
 switch ($method) {
     case "GET":
         if ($id > 0) {
-            echo showBeer($dbh, $id);
+            echo showBeer($conn, $id);
         } else {
-            echo showBeers($dbh);
+            echo showBeers($conn);
         }
         break;
     case "POST":
-        echo createBeer($dbh);
+        echo createBeer($conn);
         break;
     case "PUT":
         break;
@@ -140,7 +178,7 @@ switch ($method) {
         break;
     case "DELETE":
         if ($id > 0) {
-            echo showBeer($dbh, $id);
+            echo deleteBeer($conn, $id);
         }
         break;
 }

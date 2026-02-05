@@ -20,14 +20,12 @@
                     // Ik kan proberen de functionaliteit van het tonen 
                     // van bieren algemener te maken, zodat ik er elke 
                     // andere tabel mee in kan laden
-                    let data = [];
 
                     fetch("bier.php")
                         .then(res => res.json())
                         .then(fetched_data => {
                             console.log(fetched_data);
-                            data = fetched_data;
-                            showTable(data);
+                            showTable(fetched_data);
                         })
                         .catch(error => console.error('Error fetching data:', error));
 
