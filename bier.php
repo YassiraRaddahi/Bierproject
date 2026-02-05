@@ -18,7 +18,7 @@ try {
     $pass = '';
     $conn = new PDO('mysql:host=localhost;dbname=biertjes', $user, $pass);
 } catch (PDOException $e) {
-    print json_encode("Error!: " . $e->getMessage() . "<br/>");
+    print json_encode(["Error" => $e->getMessage()]);
     die();
 }
 
@@ -28,19 +28,15 @@ function showBeers($conn)
     $sql = 'SELECT * FROM bier';
     $stmt = $conn->prepare($sql);
 
-    try
-    {
-          $stmt->execute();
-          $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
-          http_response_code(200); // success
-          return json_encode($result);
-    }
-    catch(PDOException $e)
-    {
+    try {
+        $stmt->execute();
+        $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        http_response_code(200); // success
+        return json_encode($result);
+    } catch (PDOException $e) {
         http_response_code(404); // not found
         return json_encode(["message" => "data does not exist", "error" => $e->getMessage()]);
     }
-  
 }
 
 // Returning one beer
@@ -50,29 +46,21 @@ function showBeer($conn, $id)
     $stmt = $conn->prepare($sql);
     $stmt->bindParam(':id', $id, PDO::PARAM_INT);
 
-    try 
-    {
+    try {
         $stmt->execute();
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if($result != false)
-        {
+        if ($result != false) {
             http_response_code(200); // success
             return json_encode($result);
-        }
-        else
-        {
+        } else {
             http_response_code(404); // not found
             return json_encode(["error" => "record does not exist"]);
-        }    
-       
-    }
-    catch(PDOException $e)
-    {
+        }
+    } catch (PDOException $e) {
         http_response_code(400); //bad request
         return json_encode(["error" => "invalid request", "message" => $e->getMessage()]);
     }
-
 }
 
 // Ik moet nog validatie toepassen
@@ -119,11 +107,19 @@ function createBeer($conn)
 
     try {
         $stmt->execute();
+        $id = (int)$conn->lastInsertId();
+        
+        $added_beer = json_decode(showBeer($conn, $id));
         http_response_code(201); // Created
-        return json_encode(['status' => 'created successfully', 'id' => (int)$conn->lastInsertId()]);
+        
+        return json_encode([
+            'message' => 'Added beer',
+            'id' => $id,
+            'new_beer' => $added_beer]);
     } catch (PDOException $e) {
         http_response_code(400); // Bad Request
-        return json_encode(['error' => 'insert failed', 'message' => $e->getMessage()]);
+        return json_encode(['error' => 'insert failed, the fields naam, brouwer, 
+        type, gisting, perc and inkoop_prijs are required', 'message' => $e->getMessage()]);
     }
 }
 
@@ -136,25 +132,19 @@ function deleteBeer($conn, $id)
     try {
         $stmt->execute();
         $rowsDeleted = $stmt->rowCount();
-        http_response_code(200) ; // success
+       
 
-        if($rowsDeleted > 0)
-        {
-            return json_encode(["message" => "deleted successfully", "id" => $id]);
+        if ($rowsDeleted > 0) {
+            http_response_code(200); // success
+            return json_encode(["message" => "Beer is deleted", "id" => $id]);
+        } else {
+            http_response_code( 404); // not found
+            return json_encode(["error" => "record does not exist"]);
         }
-        else
-        {
-            return json_encode(["message" => "record does not exist"]);
-        }
-        
-    }
-    catch(PDOException $e)
-    {
-        http_response_code(400) ; // Bad Request
+    } catch (PDOException $e) {
+        http_response_code(400); // Bad Request
         return json_encode(["error" => "deletion failed", "message" => $e->getMessage()]);
     }
-    
-   
 }
 
 $method = $_SERVER['REQUEST_METHOD'];
@@ -179,6 +169,11 @@ switch ($method) {
     case "DELETE":
         if ($id > 0) {
             echo deleteBeer($conn, $id);
+        }
+        else
+        {
+            http_response_code(400); // Bad Request
+            echo json_encode(["error" => "You need to specify whitch beer to remove"]);
         }
         break;
 }
