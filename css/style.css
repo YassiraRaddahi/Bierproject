@@ -3,3 +3,32 @@
     text-align: center;
     margin: 50px 0;
 }
+
+#zoekformulier
+{
+    margin-bottom: 50px;
+    display: flex;
+    justify-content: end;
+}
+
+#zoeklabel
+{
+    margin-right: 10px;
+}
+
+.button-heart
+{
+    background-color: unset;
+    border: none;
+}
+
+.like-heart
+{
+    color: red;
+}
+
+/* 
+.like-heart:hover
+{
+    color: red;
+} */

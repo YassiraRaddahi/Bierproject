@@ -3,29 +3,17 @@
 // link std.stegion.nl pdo https://std.stegion.nl/api_rest/api_restA_pdo.txt
 
 header('Content-Type: application/json');
-// echo json_encode(["status" => "ok"]);
-// die();
-
 
 $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-//echo json_encode(["path" => $path]);
 $segments = explode('/', trim($path, '/'));
-$id = (int) end($segments);
-//echo json_encode(["id" => $id]);
+$id = (int) (int) array_slice($segments, -1, 1)[0];
 
-try {
-    $user = 'root';
-    $pass = '';
-    $conn = new PDO('mysql:host=localhost;dbname=biertjes', $user, $pass);
-} catch (PDOException $e) {
-    print json_encode(["Error" => $e->getMessage()]);
-    die();
-}
+
 
 // Returning all beers
 function showBeers($conn)
 {
-    $sql = 'SELECT * FROM bier';
+    $sql = 'SELECT bier.*, COUNT(likes.id) as likes FROM bier LEFT JOIN likes ON bier.id = likes.bier_id GROUP BY bier.id';
     $stmt = $conn->prepare($sql);
 
     try {
@@ -42,7 +30,7 @@ function showBeers($conn)
 // Returning one beer
 function showBeer($conn, $id)
 {
-    $sql = 'SELECT * FROM bier WHERE id = :id';
+    $sql = 'SELECT bier.*, COUNT(likes.id) as likes FROM bier LEFT JOIN likes ON bier.id = likes.bier_id WHERE bier.id = :id GROUP BY bier.id';
     $stmt = $conn->prepare($sql);
     $stmt->bindParam(':id', $id, PDO::PARAM_INT);
 
@@ -64,31 +52,6 @@ function showBeer($conn, $id)
 }
 
 // Ik moet nog validatie toepassen
-function updateBeer($conn, $id)
-{
-    $raw_data = file_get_contents("php://input");
-    $data = json_decode($raw_data, true);
-
-    $sql = 'UPDATE bier SET `naam` = :naam, `brouwer` = :brouwer, `type` = :type, `gisting` = :gisting, `perc` = :perc, `inkoop_prijs` = :inkoop_prijs WHERE id = :id';
-    $stmt = $conn->prepare($sql);
-
-    $stmt->bindValue(':naam', $data['naam'], PDO::PARAM_STR);
-    $stmt->bindValue(':brouwer', $data['brouwer'], PDO::PARAM_STR);
-    $stmt->bindValue(':type', $data['type'], PDO::PARAM_STR);
-    $stmt->bindValue(':gisting', $data['gisting'], PDO::PARAM_STR);
-    $stmt->bindValue(':perc', (float)$data['perc']);
-    $stmt->bindValue(':inkoop_prijs', (float)$data['inkoop_prijs']);
-
-    try {
-        $stmt->execute();
-        http_response_code(201); // Created
-        return json_encode(['status' => 'created successfully', 'id' => (int)$conn->lastInsertId()]);
-    } catch (PDOException $e) {
-        http_response_code(400); // Bad Request
-        return json_encode(['error' => 'insert failed', 'message' => $e->getMessage()]);
-    }
-}
-
 function createBeer($conn)
 {
     $raw_data = file_get_contents("php://input");
@@ -123,6 +86,39 @@ function createBeer($conn)
     }
 }
 
+function updateBeer($conn, $id)
+{
+    $raw_data = file_get_contents("php://input");
+    $data = json_decode($raw_data, true);
+
+    $sql = 'UPDATE bier SET `naam` = :naam, `brouwer` = :brouwer, `type` = :type, `gisting` = :gisting, `perc` = :perc, `inkoop_prijs` = :inkoop_prijs WHERE id = :id';
+    $stmt = $conn->prepare($sql);
+
+    $stmt->bindValue(':naam', $data['naam'], PDO::PARAM_STR);
+    $stmt->bindValue(':brouwer', $data['brouwer'], PDO::PARAM_STR);
+    $stmt->bindValue(':type', $data['type'], PDO::PARAM_STR);
+    $stmt->bindValue(':gisting', $data['gisting'], PDO::PARAM_STR);
+    $stmt->bindValue(':perc', (float)$data['perc']);
+    $stmt->bindValue(':inkoop_prijs', (float)$data['inkoop_prijs']);
+    $stmt->bindValue(':id', $id, PDO::PARAM_INT);
+
+    try {
+        $stmt->execute();
+        $rowsUpdated = $stmt->rowCount();
+
+        if ($rowsUpdated > 0) {
+            http_response_code(200); // success
+            return json_encode(["message" => "Beer has been updated successfully", "id" => $id]);
+        } else {
+            http_response_code( 404); // not found
+            return json_encode(["error" => "Beer does not exist"]);
+        }
+    } catch (PDOException $e) {
+        http_response_code(400); // Bad Request
+        return json_encode(['error' => 'insert failed', 'message' => $e->getMessage()]);
+    }
+}
+
 function deleteBeer($conn, $id)
 {
     $sql = 'DELETE FROM bier WHERE id = :id';
@@ -148,8 +144,6 @@ function deleteBeer($conn, $id)
 }
 
 $method = $_SERVER['REQUEST_METHOD'];
-//echo json_encode(["method" => $method]);
-
 
 switch ($method) {
     case "GET":
@@ -163,6 +157,14 @@ switch ($method) {
         echo createBeer($conn);
         break;
     case "PUT":
+        if ($id > 0) {
+            echo updateBeer($conn, $id);
+        }
+        else
+        {
+            http_response_code(400); // Bad Request
+            echo json_encode(["error" => "You need to specify whitch beer to update"]);
+        }
         break;
     case "PATCH":
         break;

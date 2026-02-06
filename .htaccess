@@ -13,10 +13,13 @@ RewriteRule ^api/$ index.html [L]
 
 # --- API routes naar PHP ---
 # /api/bier  -> alle bieren
-RewriteRule ^api/bier/?$ bier.php [QSA,L]
+RewriteRule ^api/bieren/?$ bier.php [QSA,L]
 
-# /api/bier/123 -> bier met id 123 (id als query param voor PHP)
-RewriteRule ^api/bier/([0-9]+)?/?$ bier.php [QSA,L]
+# /api/bier/123 -> bier met id 123
+RewriteRule ^api/bieren/([0-9]+)?/?$ bier.php [QSA,L]
+
+# /api/bier/123/like -> het aantal like van bier met id 123 
+RewriteRule ^api/bieren/([0-9]+)?/like/?$ like.php [QSA,L]
 
 # --- Frontend routes naar index.html ---
 # Laat /api/* ongemoeid (niet naar index.html sturen)

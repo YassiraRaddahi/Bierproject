@@ -193,11 +193,11 @@ async function testUpdateBeer(id) {
     
     const updatedBeer = {
         naam: 'Unit Test Bier UPDATED',
-        merk: 'Test Brouwerij UPDATED',
+        brouwer: 'Test Brouwerij UPDATED',
         type: 'Double IPA',
         gisting: 'lage',
-        alcohol: 8.5,
-        prijs: 3.50
+        perc: 8.5,
+        inkoop_prijs: 3.50
     };
     
     try {
@@ -209,14 +209,14 @@ async function testUpdateBeer(id) {
         const data = await response.json();
         
         assertEqual(response.status, 200, 'Status code moet 200 zijn');
-        assertEqual(data.message, 'Bier geüpdatet', 'Correct bericht verwacht');
+        assertEqual(data.message, 'Beer has been updated successfully', 'Correct bericht verwacht');
         
         // Verifieer dat de update gelukt is
         await sleep(100);
         const beer = await testGetSingleBeer(id);
         if (beer) {
             assertEqual(beer.naam, 'Unit Test Bier UPDATED', 'Naam moet geüpdatet zijn');
-            assertEqual(parseFloat(beer.alcohol), 8.5, 'Alcohol percentage moet geüpdatet zijn');
+            assertEqual(parseFloat(beer.perc), 8.5, 'Alcohol percentage moet geüpdatet zijn');
             console.log(`   ${colors.cyan}✓ Update geverifieerd${colors.reset}`);
         }
         
