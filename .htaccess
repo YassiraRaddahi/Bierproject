@@ -2,7 +2,7 @@ RewriteEngine On
 
 
 # 2) Zet MultiViews uit (anders kan Apache 'raden' en onverwachte matches maken)
-Options -Multiviews
+Options -MultiViews
 
 # --- Redirects ---
 
@@ -20,6 +20,9 @@ RewriteRule ^api/bieren/([0-9]+)?/?$ bier.php [QSA,L]
 
 # /api/bieren/123/likes -> het aantal likes van bier met id 123 
 RewriteRule ^api/bieren/([0-9]+)?/likes/?$ likes.php [QSA,L]
+
+# /api/bieren/likes/top/123 -> top x van biertjes met de meeste likes
+RewriteRule ^api/bieren/likes/top/([0-9]+)?$ likes.php [QSA,L]
 
 # --- Frontend routes naar index.html ---
 # Laat /api/* ongemoeid (niet naar index.html sturen)

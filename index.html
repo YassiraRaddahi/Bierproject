@@ -22,12 +22,11 @@
                     <input id="zoekveld" type="text" name="zoekterm">
                     <button class="btn btn-primary" onclick="searchBeer()">Zoeken</button>
                 </div>
-                <div id="top-3">
-                    <h4 id="top-3-title"><i class="fa-solid fa-trophy trophy"></i>TOP 3 meest gelikete biertjes:</h4>
-                    <div>
-                        <p>Nr.1</p>
-                        <p>Nr.2</p>
-                        <p>Nr.3</p>
+                <div id="top-x-container">
+                    <h4 id="top-x-title"><i class="fa-solid fa-trophy trophy"></i><span id="top-x-title-text"></span>
+                    </h4>
+                    <div id="top-x">
+                        <p id="top-x-information"></p>
                     </div>
                 </div>
                 <div id="bier-list"></div>
@@ -40,8 +39,10 @@
         // andere tabel mee in kan laden
 
         const API_BASE = 'api/bieren';
+        const topx = 3;
 
         fetchBeers();
+        fetchTopxLikedBeer(topx);
 
         function searchBeer() {
             let zoekterm = document.getElementById("zoekveld").value.trim();
@@ -102,8 +103,10 @@
 
                     if (isArray) {
                         fetchBeers();
+                        fetchTopxLikedBeer(topx);
                     } else {
                         fetchBeer(id);
+                        fetchTopxLikedBeer(topx);
                     }
 
                     console.log(fetched_result.message);
@@ -112,15 +115,44 @@
                 .catch(error => console.error('Error fetching data:', error));
         }
 
-        function fetchTop3LikedBeer()
-        {
-              fetch(API_BASE)
+        function fetchTopxLikedBeer(topx) {
+            let top = topx;
+            document.getElementById("top-x-title-text").innerHTML = `Top ${top} meest gelikete biertjes:`;
+           
+            fetch(`${API_BASE}/likes/top/${top}`)
                 .then(res => res.json())
                 .then(fetched_beers => {
                     console.log(fetched_beers);
-                    showTable(fetched_beers);
+                    showTopxLikedBeer(topx, fetched_beers);
                 })
                 .catch(error => console.error('Error fetching data:', error));
+        }
+
+        function showTopxLikedBeer(topx, data) {
+            let html = "";
+
+            for (let i = 0; i < data.length; i++) {
+                if(data[i].likes > 0)
+                {
+                    html += `<p>Nr. ${i + 1} ${data[i].naam} - <b>${data[i].likes}</b> like(s)</p>`;
+
+                }
+                else
+                {
+                    html = "";
+                    break;
+                }
+            }
+
+            if(html == "")
+            {   
+                document.getElementById("top-x-information").innerHTML = `De top ${topx} komt hieronder te staan zodra deze bekend is!`;
+            }
+            else
+            {
+                document.getElementById("top-x-information").innerHTML = html;
+            }
+            
         }
 
 

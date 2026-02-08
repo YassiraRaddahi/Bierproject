@@ -16,15 +16,20 @@
     margin-right: 10px;
 }
 
-#top-3
+#top-x-container
 {
     margin-bottom: 50px;
 }
 
-#top-3-title
+#top-x-title
 {
     margin-bottom: 20px;
     background-color: #FFF897;
+}
+
+#top-x
+{
+    
 }
 
 .trophy

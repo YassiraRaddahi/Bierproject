@@ -5,7 +5,6 @@ include 'conn.php';
 
 $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $segments = explode('/', trim($path, '/'));
-$id = (int) array_slice($segments, -2, 1)[0];
 
 function addLike($conn, $id)
 {
@@ -13,26 +12,24 @@ function addLike($conn, $id)
     $stmt = $conn->prepare($sql);
     $stmt->bindParam(':id', $id, PDO::PARAM_INT);
 
-    try 
-    {
-       $stmt->execute();
-       http_response_code(201); // Created
-       return json_encode(["message" => "Beer with id $id has been liked."]);
-       
-    } catch (PDOException $e) 
-    {
-       http_response_code(400); // Bad Request
-       return json_encode(["error" => $e->getMessage()]);
+    try {
+        $stmt->execute();
+        http_response_code(201); // Created
+        return json_encode(["message" => "Beer with id $id has been liked."]);
+    } catch (PDOException $e) {
+        http_response_code(400); // Bad Request
+        return json_encode(["error" => $e->getMessage()]);
     }
 }
 
-function showTop3LikedBeer($conn)
+function showTopxLikedBeer($conn, $topx)
 {
     $sql = 'SELECT bier.*, COUNT(likes.id) as likes FROM bier LEFT JOIN likes ON bier.id = likes.bier_id
-     GROUP BY bier.id ORDER BY likes LIMIT 3';
+     GROUP BY bier.id ORDER BY likes DESC, bier.naam ASC LIMIT :topx';
     $stmt = $conn->prepare($sql);
-    
-     try {
+    $stmt->bindParam(':topx', $topx, PDO::PARAM_INT);
+
+    try {
         $stmt->execute();
         $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
         http_response_code(200); // success
@@ -41,16 +38,20 @@ function showTop3LikedBeer($conn)
         http_response_code(404); // not found
         return json_encode(["error" => $e->getMessage()]);
     }
-
 }
 
 
 $method = $_SERVER['REQUEST_METHOD'];
 
-if ($method == "POST") 
-{
-    if($id > 0)
-    {
-        echo addLike($conn, $id);
-    }
+switch ($method) {
+    case "GET":
+        $topx = (int) array_slice($segments, -1, 1)[0];
+        echo showTopxLikedBeer($conn, $topx);
+        break;
+    case "POST":
+        $id = (int) array_slice($segments, -2, 1)[0];
+        if ($id > 0) {
+            echo addLike($conn, $id);
+        }
+        break;
 }
