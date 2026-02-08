@@ -2,6 +2,8 @@
 // link std.stegion.nl mysqli https://std.stegion.nl/api_rest/api_restA_mysqli.txt
 // link std.stegion.nl pdo https://std.stegion.nl/api_rest/api_restA_pdo.txt
 
+include 'conn.php';
+
 header('Content-Type: application/json');
 
 $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
@@ -13,7 +15,7 @@ $id = (int) (int) array_slice($segments, -1, 1)[0];
 // Returning all beers
 function showBeers($conn)
 {
-    $sql = 'SELECT bier.*, COUNT(likes.id) as likes FROM bier LEFT JOIN likes ON bier.id = likes.bier_id GROUP BY bier.id';
+    $sql = 'SELECT bier.*, COUNT(likes.bier_id) as likes FROM bier LEFT JOIN likes ON bier.id = likes.bier_id GROUP BY bier.id';
     $stmt = $conn->prepare($sql);
 
     try {
@@ -23,7 +25,7 @@ function showBeers($conn)
         return json_encode($result);
     } catch (PDOException $e) {
         http_response_code(404); // not found
-        return json_encode(["message" => "data does not exist", "error" => $e->getMessage()]);
+        return json_encode(["error" => $e->getMessage()]);
     }
 }
 
