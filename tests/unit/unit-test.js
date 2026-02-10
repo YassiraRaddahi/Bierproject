@@ -1,5 +1,5 @@
 // test-api.js
-const API_URL = 'http://localhost/schoolopdrachten/project-beer-casus/api/bier';
+const API_URL = 'http://localhost/schoolopdrachten/project-beer-casus/api/bieren';
 
 // Kleuren voor console output
 const colors = {
