@@ -3,12 +3,6 @@
 header('Content-Type: application/json');
 include 'conn.php';
 
-$path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-$indexApi = strpos($path, '/api');
-$apiPath = substr($path, $indexApi);
-$segments = explode('/', trim($apiPath, '/'));
-//echo json_encode($segments);
-
 function addLike($conn, $id)
 {
     $sql = "INSERT INTO likes (bier_id) VALUES (:id);";
@@ -57,36 +51,4 @@ function showTopxLikedBeer($conn, $topx)
         http_response_code(404); // not found
         return json_encode(["error" => $e->getMessage()]);
     }
-}
-
-
-$method = $_SERVER['REQUEST_METHOD'];
-
-switch ($method) {
-    case "GET":
-        //api/bieren/likes
-        if (count($segments) === 3 && $segments[2] === 'likes') 
-        {
-            echo showLikes($conn);
-            break;
-        } 
-        //api/bieren/likes/top/([0-9]+)
-        else if (count($segments) === 5 && filter_var($segments[4], FILTER_VALIDATE_INT) !== false) 
-        {
-            $topx = (int) $segments[4];
-            echo showTopxLikedBeer($conn, $topx);
-            break;
-        } 
-        else 
-        {
-            http_response_code(404); // not found
-            echo json_encode(["error" => "There is no response for this url"]);
-            break;
-        }
-    case "POST":
-        $id = (int) array_slice($segments, -2, 1)[0];
-        if ($id > 0) {
-            echo addLike($conn, $id);
-        }
-        break;
 }

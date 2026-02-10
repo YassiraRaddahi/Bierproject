@@ -6,11 +6,6 @@ include 'conn.php';
 
 header('Content-Type: application/json');
 
-$path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-$segments = explode('/', trim($path, '/'));
-$id = (int) (int) array_slice($segments, -1, 1)[0];
-
-
 
 // Returning all beers
 function showBeers($conn)
@@ -143,41 +138,4 @@ function deleteBeer($conn, $id)
         http_response_code(400); // Bad Request
         return json_encode(["error" => "deletion failed", "message" => $e->getMessage()]);
     }
-}
-
-$method = $_SERVER['REQUEST_METHOD'];
-
-switch ($method) {
-    case "GET":
-        if ($id > 0) {
-            echo showBeer($conn, $id);
-        } else {
-            echo showBeers($conn);
-        }
-        break;
-    case "POST":
-        echo createBeer($conn);
-        break;
-    case "PUT":
-        if ($id > 0) {
-            echo updateBeer($conn, $id);
-        }
-        else
-        {
-            http_response_code(400); // Bad Request
-            echo json_encode(["error" => "You need to specify whitch beer to update"]);
-        }
-        break;
-    case "PATCH":
-        break;
-    case "DELETE":
-        if ($id > 0) {
-            echo deleteBeer($conn, $id);
-        }
-        else
-        {
-            http_response_code(400); // Bad Request
-            echo json_encode(["error" => "You need to specify whitch beer to remove"]);
-        }
-        break;
 }
