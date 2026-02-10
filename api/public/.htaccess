@@ -4,34 +4,10 @@ RewriteEngine On
 # 2) Zet MultiViews uit (anders kan Apache 'raden' en onverwachte matches maken)
 Options -MultiViews
 
-# --- Redirects ---
+RewriteEngine On
 
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
 
-# --- Alleen /api en /api/ -> index.html (interne rewrite) ---
-RewriteRule ^api/?$ index.html [L]
-
-# --- API routes naar PHP ---
-# /api/bieren  -> alle bieren
-RewriteRule ^api/bieren/?$ index.php [QSA,L]
-
-# /api/bieren/123 -> bier met id 123
-RewriteRule ^api/bieren/([0-9]+)?/?$ index.php [QSA,L]
-
-# /api/bieren/123/likes -> het aantal likes van bier met id 123 
-RewriteRule ^api/bieren/([0-9]+)?/likes/?$ index.php [QSA,L]
-
-# /api/bieren/likes/top/123 -> top x van biertjes met de meeste likes
-RewriteRule ^api/bieren/likes/top/([0-9]+)?$ index.php [QSA,L]
-
-# /api/bieren/likes alle likes van alle bieren
-RewriteRule ^api/bieren/likes/?$ index.php [QSA,L]
-
-# --- Frontend routes naar index.html ---
-# Laat /api/* ongemoeid (niet naar index.html sturen)
-RewriteCond %{REQUEST_URI} !^/api/       
-# Alleen herschrijven als het geen fysiek bestand of map is 
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-# Stuur de rest naar index.html (SPA entrypoint)
-RewriteRule . index.html [L]
-
+RewriteRule ^ index.php [QSA,L]

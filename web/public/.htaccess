@@ -1,0 +1,11 @@
+RewriteEngine On
+
+
+# 2) Zet MultiViews uit (anders kan Apache 'raden' en onverwachte matches maken)
+Options -MultiViews
+
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+RewriteRule ^ index.html [L]
