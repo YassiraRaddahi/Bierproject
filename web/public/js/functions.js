@@ -1,3 +1,6 @@
+const API_BASE = 'api/bieren';
+const topx = 5;
+
 function searchBeer() {
     let zoekterm = document.getElementById("zoekveld").value.trim();
 
