@@ -1,9 +1,4 @@
-RewriteEngine On
-
-
-# 2) Zet MultiViews uit (anders kan Apache 'raden' en onverwachte matches maken)
 Options -MultiViews
-
 RewriteEngine On
 
 RewriteCond %{REQUEST_FILENAME} -f [OR]

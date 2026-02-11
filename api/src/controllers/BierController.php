@@ -2,8 +2,6 @@
 // link std.stegion.nl mysqli https://std.stegion.nl/api_rest/api_restA_mysqli.txt
 // link std.stegion.nl pdo https://std.stegion.nl/api_rest/api_restA_pdo.txt
 
-include 'conn.php';
-
 header('Content-Type: application/json');
 
 
