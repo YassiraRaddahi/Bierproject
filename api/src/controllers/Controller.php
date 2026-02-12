@@ -154,27 +154,107 @@ function update($conn, $table, $id)
     $raw_data = file_get_contents("php://input");
     $data = json_decode($raw_data, true);
 
-    $sql = "UPDATE $table SET `naam` = :naam, `brouwer` = :brouwer, `type` = :type, `gisting` = :gisting, `perc` = :perc, `inkoop_prijs` = :inkoop_prijs WHERE id = :id";
-    $stmt = $conn->prepare($sql);
-
-    $stmt->bindValue(':naam', $data['naam'], PDO::PARAM_STR);
-    $stmt->bindValue(':brouwer', $data['brouwer'], PDO::PARAM_STR);
-    $stmt->bindValue(':type', $data['type'], PDO::PARAM_STR);
-    $stmt->bindValue(':gisting', $data['gisting'], PDO::PARAM_STR);
-    $stmt->bindValue(':perc', (float)$data['perc']);
-    $stmt->bindValue(':inkoop_prijs', (float)$data['inkoop_prijs']);
-    $stmt->bindValue(':id', $id, PDO::PARAM_INT);
-
     try {
+
+        $resource = json_decode(show($conn, $table, $id));
+        if ($resource === null || isset($resource->error)) {
+            http_response_code(404); // Not Found
+            return json_encode(["error" => "This resource does not exist"]);
+        }
+
+        $stmt = $conn->prepare("SELECT COLUMN_NAME, IS_NULLABLE, COLUMN_DEFAULT, DATA_TYPE   
+                                FROM INFORMATION_SCHEMA.COLUMNS 
+                                WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :table");
+
+        $stmt->bindValue(':table', $table, PDO::PARAM_STR);
+        $stmt->execute();
+
+        $columns = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $types_map = [];
+        $non_nullable_columns = [];
+
+        foreach ($columns as $column) {
+            $column_name = $column['COLUMN_NAME'];
+            $type = strtolower($column['DATA_TYPE']);
+            $is_nullable = $column['IS_NULLABLE'] === 'YES';
+
+            $types_map[$column_name] = $type;
+
+            if ($column_name !== 'id') {
+                if (!$is_nullable) {
+                    $non_nullable_columns[] = $column_name;
+                }
+            }
+        }
+
+        $columns_not_updatable = [];
+
+        foreach ($non_nullable_columns as $non_nullable_column) {
+            if (array_key_exists($non_nullable_column, $data) && ($data[$non_nullable_column] === '' || $data[$non_nullable_column] === null)) {
+                $columns_not_updatable[] = $non_nullable_column;
+            }
+        }
+
+        if (!empty($columns_not_updatable)) {
+            http_response_code(400); // Bad Request
+            return json_encode(["error" => "These fields can't be empty: " . implode(", ", $columns_not_updatable)]);
+        }
+
+        $insert_columns = [];
+        foreach ($data as $key => $value) {
+            if ($key !== 'id' && in_array($key, array_column($columns, 'COLUMN_NAME'))) {
+                $insert_columns[] = $key;
+            }
+        }
+        if (empty($insert_columns)) {
+            http_response_code(400); // Bad Request
+            return json_encode(['error' => 'No valid columns provided for update']);
+        }
+
+        $setParts = array_map(
+            fn($column) => "`$column` = :$column",
+            $insert_columns
+        );
+
+        $columns_values_prepared_sql = implode(", ", $setParts);
+
+        $sql = "UPDATE `$table` SET $columns_values_prepared_sql WHERE `id` = :id";
+        $stmt = $conn->prepare($sql);
+
+        foreach ($insert_columns as $column) {
+            $column_type = $types_map[$column];
+            if ($column_type === 'varchar' || $column_type === 'text') {
+                $stmt->bindValue(":$column", $data[$column], PDO::PARAM_STR);
+            } elseif ($column_type === 'int') {
+                $stmt->bindValue(":$column", (int)$data[$column], PDO::PARAM_INT);
+            } elseif ($column_type === 'decimal' || $column_type === 'float') {
+                $stmt->bindValue(":$column", (float)$data[$column]);
+            } else {
+                $stmt->bindValue(":$column", $data[$column]);
+            }
+        }
+
+        $stmt->bindValue(':id', $id, PDO::PARAM_INT);
+
         $stmt->execute();
         $rowsUpdated = $stmt->rowCount();
 
+        $updated_resource = json_decode(show($conn, $table, $id));
+
         if ($rowsUpdated > 0) {
             http_response_code(200); // success
-            return json_encode(["message" => "This resource has been updated successfully", "id" => $id]);
+            return json_encode([
+                'message' => 'Updated resource successfully',
+                'id' => $id,
+                'updated_resource' => $updated_resource
+            ]);
         } else {
-            http_response_code(404); // not found
-            return json_encode(["error" => "This resource does not exist"]);
+            http_response_code(200); // success (but no changes)
+            return json_encode([
+                'message' => 'No changes were made to the resource',
+                'id' => $id,
+                'updated_resource' => $updated_resource
+            ]);
         }
     } catch (PDOException $e) {
         http_response_code(400); // Bad Request

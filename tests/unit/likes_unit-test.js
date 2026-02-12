@@ -1,5 +1,5 @@
 // test-api.js
-const API_URL = 'http://project-beer.local/api/beers';
+const API_URL = 'http://project-beer.local/api/likes';
 
 // Kleuren voor console output
 const colors = {
@@ -34,6 +34,12 @@ function assertEqual(actual, expected, message) {
     return assert(actual === expected, `${message} (verwacht: ${expected}, gekregen: ${actual})`);
 }
 
+
+function assertOneEqual(actual, expected, message) {
+
+    return assert(expected.includes(actual), `${message} (verwacht: ${expected.join(' or ')}, gekregen: ${actual})`);
+}
+
 function assertNotNull(value, message) {
     return assert(value !== null && value !== undefined, message);
 }
@@ -44,9 +50,9 @@ async function sleep(ms) {
 
 // ============= TEST FUNCTIES =============
 
-// GET - Alle bieren
-async function testGetAllBeers() {
-    console.log(`\n${colors.blue}=== TEST: GET alle bieren ===${colors.reset}`);
+// GET - Alle likes
+async function testGetAllLikes() {
+    console.log(`\n${colors.blue}=== TEST: GET alle likes ===${colors.reset}`);
     
     try {
         const response = await fetch(API_URL);
@@ -56,52 +62,39 @@ async function testGetAllBeers() {
         assert(Array.isArray(data), 'Response moet een array zijn');
     
         // Verifieer dat de structuur klopt
-        assertNotNull(data[0].id, 'Bier moet een ID hebben');
-        assertNotNull(data[0].name, 'Bier moet een naam hebben');
-        assertNotNull(data[0].brewer, 'Bier moet een brouwer hebben');
-        assertNotNull(data[0].type, 'Bier moet een type hebben');
-        assertNotNull(data[0].fermentation, 'Bier moet een gisting hebben');
-        assertNotNull(data[0].perc, 'Bier moet een percentage hebben');
-        assertNotNull(data[0].purchase_price, 'Bier moet een inkoopprijs hebben');
+        assertNotNull(data[0].beer_id, 'Like moet een beer_id hebben');
         
-        console.log(`   ${colors.cyan}Aantal bieren: ${data.length}${colors.reset}`);
+        console.log(`   ${colors.cyan}Aantal likes: ${data.length}${colors.reset}`);
         
         return data;
     } catch (error) {
-        assert(false, `GET alle bieren gefaald: ${error.message}`);
+        assert(false, `GET alle likes gefaald: ${error.message}`);
         return [];
     }
 }
 
-// GET - Enkel bier
-async function testGetSingleBeer(id) {
-    console.log(`\n${colors.blue}=== TEST: GET enkel bier (ID: ${id}) ===${colors.reset}`);
+// GET - Enkel like
+async function testGetSingleLike(id) {
+    console.log(`\n${colors.blue}=== TEST: GET enkel like (ID: ${id}) ===${colors.reset}`);
     
     try {
         const response = await fetch(`${API_URL}/${id}`);
         const data = await response.json();
         
         assertEqual(response.status, 200, 'Status code moet 200 zijn');
-        assertNotNull(data.id, 'Bier moet een ID hebben');
-        assertEqual(data.id, id, 'ID moet overeenkomen');
-        assertNotNull(data.name, 'Bier moet een naam hebben');
-        assertNotNull(data.brewer, 'Bier moet een brouwer hebben');
-        assertNotNull(data.type, 'Bier moet een type hebben');
-        assertNotNull(data.fermentation, 'Bier moet een gisting hebben');
-        assertNotNull(data.perc, 'Bier moet een percentage hebben');
-        assertNotNull(data.purchase_price, 'Bier moet een inkoopprijs hebben');
+        assertNotNull(data.beer_id, 'Like moet een beer_id hebben');
         
-        console.log(`   ${colors.cyan}Bier: ${data.name} (${data.brewer})${colors.reset}`);
+        console.log(`   ${colors.cyan}Like: ${data.beer_id}${colors.reset}`);
         return data;
     } catch (error) {
-        assert(false, `GET enkel bier gefaald: ${error.message}`);
+        assert(false, `GET enkel like gefaald: ${error.message}`);
         return null;
     }
 }
 
-// GET - Niet-bestaand bier (404)
-async function testGetNonExistentBeer() {
-    console.log(`\n${colors.blue}=== TEST: GET niet-bestaand bier (404) ===${colors.reset}`);
+// GET - Niet-bestaand like (404)
+async function testGetNonExistentLike() {
+    console.log(`\n${colors.blue}=== TEST: GET niet-bestaand like (404) ===${colors.reset}`);
     
     try {
         const response = await fetch(`${API_URL}/99999`);
@@ -117,24 +110,20 @@ async function testGetNonExistentBeer() {
     }
 }
 
-// POST - Nieuw bier aanmaken
-async function testCreateBeer() {
-    console.log(`\n${colors.blue}=== TEST: POST nieuw bier aanmaken ===${colors.reset}`);
+// POST - Nieuw like aanmaken
+async function testCreateLike() {
+    console.log(`\n${colors.blue}=== TEST: POST nieuw like aanmaken ===${colors.reset}`);
     
-    const newBeer = {
-        name: 'Unit Test Bier',
-        brewer: 'Test Brouwerij',
-        type: 'IPA',
-        fermentation: 'spontane',
-        perc: 6.5,
-        purchase_price: 2.50
+    // Example data for a new like (this beer must exist in the database)
+    const newLike = {
+        beer_id: 1
     };
     
     try {
         const response = await fetch(API_URL, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(newBeer)
+            body: JSON.stringify(newLike)
         });
         const data = await response.json();
 
@@ -143,32 +132,29 @@ async function testCreateBeer() {
         assertEqual(response.status, 201, 'Status code moet 201 zijn (Created)');
         assertNotNull(data.id, 'Response moet een ID bevatten');
         assertEqual(data.message, 'Added resource successfully', 'Correct bericht verwacht');
-        //assertEqual(JSON.stringify(data.new_resource), JSON.stringify(newBeer), 'JSON object van toegevoegd biertje verwacht');
         
-        console.log(`${colors.cyan}Nieuw bier ID: ${data.id}${colors.reset}`);
+        console.log(`${colors.cyan}Nieuw like ID: ${data.id}${colors.reset}`);
         return data.id;
     } catch (error) {
-        assert(false, `POST nieuw bier gefaald: ${error.message}`);
+        assert(false, `POST nieuw like gefaald: ${error.message}`);
         return null;
     }
 }
 
 // POST - Ongeldige data (400)
-async function testCreateBeerInvalidData() {
+async function testCreateLikeInvalidData() {
     console.log(`\n${colors.blue}=== TEST: POST met ongeldige data (400) ===${colors.reset}`);
     
-    const invalidBeer = {
-        // purchase_price ontbreekt (verplicht)
-        type: 'IPA',
-        fermentation: 'spontane',
-        perc: 6.5,
+    const invalidLike = {
+        // beer_id ontbreekt (verplicht)
+        wrong: 'data'
     };
     
     try {
         const response = await fetch(API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(invalidBeer)
+            body: JSON.stringify(invalidLike)
         });
         const data = await response.json();
         
@@ -186,63 +172,53 @@ async function testCreateBeerInvalidData() {
     }
 }
 
-// PUT - Bier updaten
-async function testUpdateBeer(id) {
-    console.log(`\n${colors.blue}=== TEST: PUT bier updaten (ID: ${id}) ===${colors.reset}`);
+// PUT - Like updaten
+async function testUpdateLike(id) {
+    console.log(`\n${colors.blue}=== TEST: PUT like updaten (ID: ${id}) ===${colors.reset}`);
     
-    const updatedBeer = {
-        name: 'Unit Test Bier UPDATED',
-        brewer: 'Test Brouwerij UPDATED',
-        type: 'Double IPA',
-        fermentation: 'lage',
-        perc: 8.5,
-        purchase_price: 3.50
+    const updatedLike = {
+        beer_id: 1
     };
     
     try {
         const response = await fetch(`${API_URL}/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(updatedBeer)
+            body: JSON.stringify(updatedLike)
         });
         const data = await response.json();
         
         assertEqual(response.status, 200, 'Status code moet 200 zijn');
-        assertEqual(data.message, 'Beer has been updated successfully', 'Correct bericht verwacht');
+        assertOneEqual(data.message, ['Updated resource successfully', 'No changes were made to the resource'] , 'Correct bericht verwacht');
         
         // Verifieer dat de update gelukt is
         await sleep(100);
-        const beer = await testGetSingleBeer(id);
-        if (beer) {
-            assertEqual(beer.name, 'Unit Test Bier UPDATED', 'Naam moet geüpdatet zijn');
-            assertEqual(parseFloat(beer.perc), 8.5, 'Alcohol percentage moet geüpdatet zijn');
+        const like = await testGetSingleLike(id);
+        if (like) {
+            assertEqual(like.beer_id, 1, 'beer_id moet geüpdatet zijn');
             console.log(`   ${colors.cyan}✓ Update geverifieerd${colors.reset}`);
         }
         
         return true;
     } catch (error) {
-        assert(false, `PUT update bier gefaald: ${error.message}`);
+        assert(false, `PUT update like gefaald: ${error.message}`);
         return false;
     }
 }
 
-// PUT - Niet-bestaand bier updaten (404)
-async function testUpdateNonExistentBeer() {
-    console.log(`\n${colors.blue}=== TEST: PUT niet-bestaand bier (404) ===${colors.reset}`);
+// PUT - Niet-bestaand like updaten (404)
+async function testUpdateNonExistentLike() {
+    console.log(`\n${colors.blue}=== TEST: PUT niet-bestaand like (404) ===${colors.reset}`);
     
-    const beer = {
-        name: 'Test',
-        brewer: 'Test',
-        type: 'Lager',
-        alcohol: 5.0,
-        price: 1.50
+    const like = {
+        beer_id: 1
     };
     
     try {
         const response = await fetch(`${API_URL}/99999`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(beer)
+            body: JSON.stringify(like)
         });
         const data = await response.json();
         
@@ -256,9 +232,9 @@ async function testUpdateNonExistentBeer() {
     }
 }
 
-// DELETE - Bier verwijderen
-async function testDeleteBeer(id) {
-    console.log(`\n${colors.blue}=== TEST: DELETE bier (ID: ${id}) ===${colors.reset}`);
+// DELETE - Like verwijderen
+async function testDeleteLike(id) {
+    console.log(`\n${colors.blue}=== TEST: DELETE like (ID: ${id}) ===${colors.reset}`);
     
     try {
         const response = await fetch(`${API_URL}/${id}`, {
@@ -269,24 +245,24 @@ async function testDeleteBeer(id) {
         assertEqual(response.status, 200, 'Status code moet 200 zijn');
         assertEqual(data.message, 'This resource is deleted', 'Correct bericht verwacht');
         
-        console.log(`   ${colors.cyan}Bier ${id} verwijderd${colors.reset}`);
+        console.log(`   ${colors.cyan}Like ${id} verwijderd${colors.reset}`);
         
-        // Verifieer dat bier echt verwijderd is
+        // Verifieer dat like echt verwijderd is
         await sleep(100);
         const checkResponse = await fetch(`${API_URL}/${id}`);
-        assertEqual(checkResponse.status, 404, 'Bier moet niet meer bestaan (404)');
+        assertEqual(checkResponse.status, 404, 'Like moet niet meer bestaan (404)');
         console.log(`   ${colors.cyan}✓ Verwijdering geverifieerd${colors.reset}`);
         
         return true;
     } catch (error) {
-        assert(false, `DELETE bier gefaald: ${error.message}`);
+        assert(false, `DELETE like gefaald: ${error.message}`);
         return false;
     }
 }
 
-// DELETE - Niet-bestaand bier verwijderen (404)
-async function testDeleteNonExistentBeer() {
-    console.log(`\n${colors.blue}=== TEST: DELETE niet-bestaand bier (404) ===${colors.reset}`);
+// DELETE - Niet-bestaand like verwijderen (404)
+async function testDeleteNonExistentLike() {
+    console.log(`\n${colors.blue}=== TEST: DELETE niet-bestaand like (404) ===${colors.reset}`);
     
     try {
         const response = await fetch(`${API_URL}/99999`, {
@@ -324,33 +300,28 @@ async function testDeleteWithoutId() {
     }
 }
 
-// DELETE - Meerdere bieren in reeks
-async function testDeleteMultipleBeers() {
-    console.log(`\n${colors.blue}=== TEST: DELETE meerdere bieren ===${colors.reset}`);
+// DELETE - Meerdere likes in reeks
+async function testDeleteMultipleLikes() {
+    console.log(`\n${colors.blue}=== TEST: DELETE meerdere likes ===${colors.reset}`);
     
-    // Maak 3 test bieren
+    // Maak 3 test likes
     const ids = [];
     for (let i = 0; i < 3; i++) {
-        const beer = {
-            name: `Delete Test ${i + 1}`,
-            brewer: 'Delete Test Brouwerij',
-            type: 'Test',
-            fermentation: 5.0,
-            perc: 0.036,
-            purchase_price: 1.00
+        const like = {
+            beer_id: `${i + 1}`,
         };
         
         const response = await fetch(API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(beer)
+            body: JSON.stringify(like)
         });
         const data = await response.json();
         ids.push(data.id);
         await sleep(50);
     }
     
-    console.log(`   ${colors.cyan}Aangemaakt: ${ids.length} test bieren${colors.reset}`);
+    console.log(`   ${colors.cyan}Aangemaakt: ${ids.length} test likes${colors.reset}`);
     
     // Verwijder ze allemaal
     let deletedCount = 0;
@@ -364,8 +335,8 @@ async function testDeleteMultipleBeers() {
         await sleep(50);
     }
     
-    assertEqual(deletedCount, 3, 'Alle 3 bieren moeten verwijderd zijn');
-    console.log(`   ${colors.cyan}Verwijderd: ${deletedCount} bieren${colors.reset}`);
+    assertEqual(deletedCount, 3, 'Alle 3 likes moeten verwijderd zijn');
+    console.log(`   ${colors.cyan}Verwijderd: ${deletedCount} likes${colors.reset}`);
     
     return true;
 }
@@ -374,61 +345,61 @@ async function testDeleteMultipleBeers() {
 
 async function runAllTests() {
     console.log(`${colors.yellow}╔════════════════════════════════════════╗${colors.reset}`);
-    console.log(`${colors.yellow}║   REST API UNIT TESTS - BIER API      ║${colors.reset}`);
+    console.log(`${colors.yellow}║   REST API UNIT TESTS - LIKE API      ║${colors.reset}`);
     console.log(`${colors.yellow}║         Inclusief DELETE Tests        ║${colors.reset}`);
     console.log(`${colors.yellow}╚════════════════════════════════════════╝${colors.reset}`);
     
-    let createdBeerId = null;
+    let createdLikeId = null;
     
     try {
         // ===== GET TESTS =====
         console.log(`\n${colors.yellow}▶ GET TESTS${colors.reset}`);
-        await testGetAllBeers();
+        await testGetAllLikes();
         await sleep(100);
         
-        await testGetNonExistentBeer();
+        await testGetNonExistentLike();
         await sleep(100);
         
         // ===== POST TESTS =====
         console.log(`\n${colors.yellow}▶ POST TESTS${colors.reset}`);
-        createdBeerId = await testCreateBeer();
+        createdLikeId = await testCreateLike();
         await sleep(100);
         
-        await testCreateBeerInvalidData();
+        await testCreateLikeInvalidData();
         await sleep(100);
         
         // ===== GET SINGLE TESTS =====
         console.log(`\n${colors.yellow}▶ GET SINGLE TESTS${colors.reset}`);
-        if (createdBeerId) {
-            await testGetSingleBeer(createdBeerId);
+        if (createdLikeId) {
+            await testGetSingleLike(createdLikeId);
             await sleep(100);
         }
         
         // ===== PUT TESTS =====
         console.log(`\n${colors.yellow}▶ PUT TESTS${colors.reset}`);
-        if (createdBeerId) {
-            await testUpdateBeer(createdBeerId);
+        if (createdLikeId) {
+            await testUpdateLike(createdLikeId);
             await sleep(100);
         }
         
-        await testUpdateNonExistentBeer();
+        await testUpdateNonExistentLike();
         await sleep(100);
         
         // ===== DELETE TESTS =====
         console.log(`\n${colors.yellow}▶ DELETE TESTS${colors.reset}`);
         
-        await testDeleteNonExistentBeer();
+        await testDeleteNonExistentLike();
         await sleep(100);
         
         await testDeleteWithoutId();
         await sleep(100);
         
-        await testDeleteMultipleBeers();
+        await testDeleteMultipleLikes();
         await sleep(100);
         
-        // DELETE het eerder aangemaakte bier als laatste test
-        if (createdBeerId) {
-            await testDeleteBeer(createdBeerId);
+        // DELETE het eerder aangemaakte like als laatste test
+        if (createdLikeId) {
+            await testDeleteLike(createdLikeId);
         }
         
     } catch (error) {
