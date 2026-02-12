@@ -158,11 +158,10 @@ async function testCreateBeerInvalidData() {
     console.log(`\n${colors.blue}=== TEST: POST met ongeldige data (400) ===${colors.reset}`);
     
     const invalidBeer = {
-        // name en brewer ontbreken (verplicht)
+        // purchase_price ontbreekt (verplicht)
         type: 'IPA',
         fermentation: 'spontane',
         perc: 6.5,
-        purchase_price: 2.50
     };
     
     try {
@@ -333,12 +332,12 @@ async function testDeleteMultipleBeers() {
     const ids = [];
     for (let i = 0; i < 3; i++) {
         const beer = {
-            naam: `Delete Test ${i + 1}`,
-            brouwer: 'Delete Test Brouwerij',
+            name: `Delete Test ${i + 1}`,
+            brewer: 'Delete Test Brouwerij',
             type: 'Test',
-            gisting: 5.0,
+            fermentation: 5.0,
             perc: 0.036,
-            inkoop_prijs: 1.00
+            purchase_price: 1.00
         };
         
         const response = await fetch(API_URL, {

@@ -174,18 +174,18 @@ function update($conn, $table, $id)
             return json_encode(["message" => "This resource has been updated successfully", "id" => $id]);
         } else {
             http_response_code(404); // not found
-            return json_encode(["error" => "The resource does not exist"]);
+            return json_encode(["error" => "This resource does not exist"]);
         }
     } catch (PDOException $e) {
         http_response_code(400); // Bad Request
-        return json_encode(['error' => 'insert failed', 'message' => $e->getMessage()]);
+        return json_encode(['error' => 'update failed', 'message' => $e->getMessage()]);
     }
 }
 
 // deletes one resource
 function delete($conn, $table, $id)
 {
-    $sql = "DELETE FROM $table WHERE id = :id";
+    $sql = "DELETE FROM `$table` WHERE `id` = :id";
     $stmt = $conn->prepare($sql);
     $stmt->bindParam(':id', $id, PDO::PARAM_INT);
 
@@ -199,7 +199,7 @@ function delete($conn, $table, $id)
             return json_encode(["message" => "This resource is deleted", "id" => $id]);
         } else {
             http_response_code(404); // not found
-            return json_encode(["error" => "record does not exist"]);
+            return json_encode(["error" => "This resource does not exist"]);
         }
     } catch (PDOException $e) {
         http_response_code(400); // Bad Request

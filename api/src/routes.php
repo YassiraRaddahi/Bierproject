@@ -18,9 +18,11 @@ switch ($method) {
             $collection = $matches['collection'];
             $table = getTableName($allowed_tables, $collection);
 
-            if ($table) {
-                echo all($conn, $table);
+            if (!$table) {
+                break;
             }
+
+            echo all($conn, $table);
 
             break;
         }
@@ -31,6 +33,7 @@ switch ($method) {
             $id = (int) $matches['id'];
 
             $table = getTableName($allowed_tables, $collection);
+            
             if (!$table) {
                 break;
             }
@@ -57,7 +60,7 @@ switch ($method) {
             $left_table = getTableName($allowed_tables, $collection_a);
             $right_table = getTableName($allowed_tables, $collection_b);
 
-            if(!($left_table && $right_table))
+            if(!$left_table || !$right_table)
             {
                 break;
             }
@@ -91,10 +94,11 @@ switch ($method) {
             $left_table = getTableName($allowed_tables, $collection_a);
             $right_table = getTableName($allowed_tables, $collection_b);
 
-            if(!($left_table && $right_table))
+            if(!$left_table || !$right_table)
             {
                 break;
             }
+
 
             if ($id > 0) 
             {
@@ -126,7 +130,7 @@ switch ($method) {
             $left_table = getTableName($allowed_tables, $collection_a);
             $right_table = getTableName($allowed_tables, $collection_b);
 
-            if(!($left_table && $right_table))
+            if(!$left_table || !$right_table)
             {
                 break;
             }
@@ -153,15 +157,18 @@ switch ($method) {
             $collection = $matches['collection'];
             $table = getTableName($allowed_tables, $collection);
 
-            if ($table) {
-                echo create($conn, $table);
+            if(!$table)
+            {
+                break;
             }
 
+            echo create($conn, $table);
             break;
         }
-        
+
         http_response_code(404); // Not Found
         echo json_encode(["message" => "No valid endpoint is inserted"]);
+        break;
     case "PUT":
         if (preg_match('#^bieren/(?P<id>\d+)/?$#', $clean_path, $matches)) {
             $id = (int) $matches['id'];
@@ -173,8 +180,6 @@ switch ($method) {
             }
             break;
         }
-    case "PATCH":
-        break;
     case "DELETE":
         if (preg_match('#^(?P<collection>[A-Za-z_$][A-Za-z0-9_$]{0,63})/(?P<id>\d+)/?$#', $clean_path, $matches)) {
             $collection = $matches['collection'];
@@ -195,7 +200,8 @@ switch ($method) {
         }
 
         http_response_code(400); // Bad Request
-        return json_encode(["error" => "deletion failed", "message" => "You need to specify which resource you want to remove"]);
+        echo json_encode(["error" => "deletion failed", "message" => "You need to specify which resource you want to remove"]);
+        break;
     default:
         http_response_code(405); // Method Not Allowed 
         echo json_encode(["error" => "This HTTP method is not allowed"]);
