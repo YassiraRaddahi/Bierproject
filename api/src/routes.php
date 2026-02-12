@@ -45,8 +45,11 @@ switch ($method) {
             break;
         }
 
-        //endpoint api/<collection_a>/<collection_b>                 ---- e.g. api/beers/likes
-        //endpoint api/<collection_a>/<collection_b>?include=<value> ---- e.g. api/beers/likes?include=relation_counts
+        //endpoint api/<collection_a>/<collection_b>                                  ---- e.g. api/beers/likes
+        //endpoint api/<collection_a>/<collection_b>?include=<value>                  ---- e.g. api/beers/likes?include=relation_counts
+        //endpoint api/<collection_a>/<collection_b>?search=<value>                   ---- e.g. api/beers/likes?search=keyword
+        //endpoint api/<collection_a>/<collection_b>?include=<value>&search=<value>   ---- e.g. api/beers/likes?include=relation_counts&search=Abondance
+        
         if (preg_match('#^(?P<collection_a>[A-Za-z_$][A-Za-z0-9_$]{0,63})/(?P<collection_b>[A-Za-z_$][A-Za-z0-9_$]{0,63})?$#', $clean_path, $matches)) {
             $collection_a = $matches['collection_a'];
             $collection_b = $matches['collection_b'];
@@ -59,9 +62,19 @@ switch ($method) {
                 break;
             }
 
-            if (isset($_GET['include']) && $_GET['include'] === 'relation_counts') {
+            if (isset($_GET['include']) && $_GET['include'] === 'relation_counts' && isset($_GET['search'] ) && !empty(trim($_GET['search']))) {
+                $search_on_name = trim($_GET['search']);
+                echo findWithRelationCounts($conn, $left_table, $right_table, $search_on_name);
+                
+            }
+            else if(isset($_GET['include']) && $_GET['include'] === 'relation_counts') {
                 echo allWithRelationCounts($conn, $left_table, $right_table);
-            } else {
+            }
+            else if (isset($_GET['search'] ) && !empty(trim($_GET['search']))) {
+                $search_on_name = trim($_GET['search']);
+                echo findWithRelation($conn, $left_table, $right_table, $search_on_name);
+            }
+            else {
                 echo allWithRelation($conn, $left_table, $right_table);
             }
 
@@ -135,7 +148,7 @@ switch ($method) {
         echo json_encode(["message" => "No valid endpoint is inserted"]);
         break;
     case "POST":
-        // endpoint api/<collection>                                  ---- e.g. api/beers
+        // endpoint api/<collection>                                  ---- e.g. api/likes
         if (preg_match('#^(?P<collection>[A-Za-z_$][A-Za-z0-9_$]{0,63})/?$#', $clean_path, $matches)) {
             $collection = $matches['collection'];
             $table = getTableName($allowed_tables, $collection);
@@ -145,13 +158,10 @@ switch ($method) {
             }
 
             break;
-
-            //         if ($id > 0) {
-            //             echo addLike($conn, $id);
-            //         }
-            //         break;
-
         }
+        
+        http_response_code(404); // Not Found
+        echo json_encode(["message" => "No valid endpoint is inserted"]);
     case "PUT":
         if (preg_match('#^bieren/(?P<id>\d+)/?$#', $clean_path, $matches)) {
             $id = (int) $matches['id'];

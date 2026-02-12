@@ -19,8 +19,7 @@
                     <label id="zoeklabel" for="zoekveld">
                         Zoek een biertje op naam:
                     </label>
-                    <input id="zoekveld" type="text" name="zoekterm">
-                    <button class="btn btn-primary" onclick="searchBeerWithLikes(document.getElementById('zoekveld').value)">Zoeken</button>
+                    <input onkeyup="fetchBeersWithLikes(this.value)" id="zoekveld" type="text" name="zoekterm">
                 </div>
                 <div id="top-x-container">
                     <h4 id="top-x-title"><i class="fa-solid fa-trophy trophy"></i><span id="top-x-title-text"></span>

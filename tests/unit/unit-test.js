@@ -138,12 +138,12 @@ async function testCreateBeer() {
         });
         const data = await response.json();
 
-        delete data.new_beer.id;
+        delete data.new_resource.id;
         
         assertEqual(response.status, 201, 'Status code moet 201 zijn (Created)');
         assertNotNull(data.id, 'Response moet een ID bevatten');
-        assertEqual(data.message, 'Added beer', 'Correct bericht verwacht');
-        //assertEqual(JSON.stringify(data.new_beer), JSON.stringify(newBeer), 'JSON object van toegevoegd biertje verwacht');
+        assertEqual(data.message, 'Added resource successfully', 'Correct bericht verwacht');
+        //assertEqual(JSON.stringify(data.new_resource), JSON.stringify(newBeer), 'JSON object van toegevoegd biertje verwacht');
         
         console.log(`${colors.cyan}Nieuw bier ID: ${data.id}${colors.reset}`);
         return data.id;
@@ -268,7 +268,7 @@ async function testDeleteBeer(id) {
         const data = await response.json();
         
         assertEqual(response.status, 200, 'Status code moet 200 zijn');
-        assertEqual(data.message, 'Beer is deleted', 'Correct bericht verwacht');
+        assertEqual(data.message, 'This resource is deleted', 'Correct bericht verwacht');
         
         console.log(`   ${colors.cyan}Bier ${id} verwijderd${colors.reset}`);
         

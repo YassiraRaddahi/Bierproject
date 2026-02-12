@@ -63,18 +63,22 @@ function create($conn, $table)
     try {
         $stmt = $conn->prepare("SELECT COLUMN_NAME, IS_NULLABLE, COLUMN_DEFAULT, DATA_TYPE   
                                 FROM INFORMATION_SCHEMA.COLUMNS 
-                                WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :`table`");
+                                WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :table");
 
         $stmt->bindValue(':table', $table, PDO::PARAM_STR);
         $stmt->execute();
 
         $columns = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $types_map = [];
         $required_columns = [];
 
-        foreach ($columns as $col) {
-            $column_name = $col['COLUMN_NAME'];
-            $is_nullable = $col['IS_NULLABLE'] === 'YES';
-            $has_default = $col['COLUMN_DEFAULT'] !== null;
+        foreach ($columns as $column) {
+            $column_name = $column['COLUMN_NAME'];
+            $type = strtolower($column['DATA_TYPE']);
+            $is_nullable = $column['IS_NULLABLE'] === 'YES';
+            $has_default = $column['COLUMN_DEFAULT'] !== null;
+
+            $types_map[$column_name] = $type;
 
             if ($column_name !== 'id') {
                 if (!$is_nullable && !$has_default) {
@@ -86,7 +90,7 @@ function create($conn, $table)
         $missing_columns = [];
 
         foreach ($required_columns as $required_column) {
-            if (!isset($data[$required_column]) || empty($data[$required_column])) {
+            if (!array_key_exists($required_column, $data) || $data[$required_column] === '' || $data[$required_column] === null) {
                 $missing_columns[] = $required_column;
             }
         }
@@ -96,15 +100,26 @@ function create($conn, $table)
             return json_encode(["error" => "Missing required fields: " . implode(", ", $missing_columns)]);
         }
 
-        $columns_in_sql = implode(", ", $required_columns);
-        $placeholders_sql =  ":" . implode(", :", $required_columns);
+        $insert_columns = [];
+        foreach ($data as $key => $value) {
+            if ($key !== 'id' && in_array($key, array_column($columns, 'COLUMN_NAME'))) {
+                $insert_columns[] = $key;
+            }
+        }
+        if (empty($insert_columns)) {
+            http_response_code(400); // Bad Request
+            return json_encode(['error' => 'No valid columns provided for insert']);
+        }
 
-        $sql = "INSERT INTO $table ($columns_in_sql)
+        $columns_in_sql = implode(", ", $insert_columns);
+        $placeholders_sql =  ":" . implode(", :", $insert_columns);
+
+        $sql = "INSERT INTO `$table` ($columns_in_sql)
                 VALUES ($placeholders_sql);";
         $stmt = $conn->prepare($sql);
 
-        foreach ($required_columns as $column) {
-            $column_type = $col['DATA_TYPE'];
+        foreach ($insert_columns as $column) {
+            $column_type = $types_map[$column];
             if ($column_type === 'varchar' || $column_type === 'text') {
                 $stmt->bindValue(":$column", $data[$column], PDO::PARAM_STR);
             } elseif ($column_type === 'int') {
@@ -119,13 +134,13 @@ function create($conn, $table)
         $stmt->execute();
         $id = (int)$conn->lastInsertId();
 
-        $added_beer = json_decode(show($conn, $table, $id));
+        $added_resource = json_decode(show($conn, $table, $id));
         http_response_code(201); // Created
 
         return json_encode([
-            'message' => 'Added beer',
+            'message' => 'Added resource successfully',
             'id' => $id,
-            'new_beer' => $added_beer
+            'new_resource' => $added_resource
         ]);
     } catch (PDOException $e) {
         http_response_code(500); // Server Error
@@ -267,14 +282,14 @@ function showWithRelation($conn, $left_table, $right_table, $id, $columns_left_t
         $stmt->bindParam(':id', $id, PDO::PARAM_INT);
 
         $stmt->execute();
-        $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ($result != false) {
             http_response_code(200); // success
             return json_encode($result);
         } else {
             http_response_code(404); // not found
-            return json_encode(["error" => "record does not exist"]);
+            return json_encode(["error" => "Resource does not exist"]);
         }
     } catch (PDOException $e) {
         http_response_code(500); //server error
@@ -304,7 +319,7 @@ function showWithRelationCounts($conn, $left_table, $right_table, $id, $columns_
             return json_encode($result);
         } else {
             http_response_code(404); // not found
-            return json_encode(["error" => "record does not exist"]);
+            return json_encode(["error" => "Resource does not exist"]);
         }
     } catch (PDOException $e) {
         http_response_code(500); //server error
@@ -313,27 +328,30 @@ function showWithRelationCounts($conn, $left_table, $right_table, $id, $columns_
 }
 
 // Returns found resource(s) with their related resource
-function findWithRelation($conn, $left_table, $right_table, $search_on_name)
+function findWithRelation($conn, $left_table, $right_table, $search_on_name, $columns_left_table = "*", $columns_right_table = "*")
 {
-    $sql = "SELECT $left_table.*, COUNT($right_table.id) AS `{$right_table}_count`
+    try {
+        $columns_left_table = convertToSQLColumns($conn, $left_table, $columns_left_table);
+        $columns_right_table = convertToSQLColumns($conn, $right_table, $columns_right_table);
+
+        $sql = "SELECT $columns_left_table, $columns_right_table
             FROM $left_table 
             LEFT JOIN $right_table ON $left_table.id = `$right_table`.`{$left_table}_id`
-            WHERE $left_table.name LIKE :search 
-            GROUP BY $left_table.id";
-    $stmt = $conn->prepare($sql);
-    $search_param = "%$search_on_name%";
-    $stmt->bindParam(':search', $search_param, PDO::PARAM_STR);
+            WHERE `{$left_table}.name` LIKE :search";
+        $stmt = $conn->prepare($sql);
+        $search_param = "%$search_on_name%";
+        $stmt->bindParam(':search', $search_param, PDO::PARAM_STR);
 
-    try {
+
         $stmt->execute();
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         if ($result != false) {
             http_response_code(200); // success
             return json_encode($result);
         } else {
             http_response_code(404); // not found
-            return json_encode(["error" => "record does not exist"]);
+            return json_encode(["error" => "Resource does not exist"]);
         }
     } catch (PDOException $e) {
         http_response_code(500); //server error
@@ -343,27 +361,31 @@ function findWithRelation($conn, $left_table, $right_table, $search_on_name)
 
 // Ik moet de search uit de GET array halen in de router! Bijvoorbeeld ?search=blabla en $search = $_GET['search']
 // Returns found resource(s) with the amount of related resources
-function findWithRelationCounts($conn, $left_table, $right_table, $search_on_name)
+function findWithRelationCounts($conn, $left_table, $right_table, $search_on_name, $columns_left_table = "*")
 {
-    $sql = "SELECT $left_table.*, COUNT($right_table.id)  AS `{$right_table}_count`
+
+    try {
+        $columns_left_table = convertToSQLColumns($conn, $left_table, $columns_left_table);
+
+        $sql = "SELECT $columns_left_table, COUNT($right_table.id)  AS `{$right_table}_count`
             FROM $left_table 
             LEFT JOIN $right_table ON $left_table.id = `$right_table`.`{$left_table}_id`
             WHERE $left_table.name LIKE :search 
             GROUP BY $left_table.id";
-    $stmt = $conn->prepare($sql);
-    $search_param = "%$search_on_name%";
-    $stmt->bindParam(':search', $search_param, PDO::PARAM_STR);
+        $stmt = $conn->prepare($sql);
+        $search_param = "%$search_on_name%";
+        $stmt->bindParam(':search', $search_param, PDO::PARAM_STR);
 
-    try {
+
         $stmt->execute();
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         if ($result != false) {
             http_response_code(200); // success
             return json_encode($result);
         } else {
             http_response_code(404); // not found
-            return json_encode(["error" => "record does not exist"]);
+            return json_encode(["error" => "Resource does not exist"]);
         }
     } catch (PDOException $e) {
         http_response_code(500); //server error
@@ -376,17 +398,17 @@ function findWithRelationCounts($conn, $left_table, $right_table, $search_on_nam
 function showTopxWithRelationCounts($conn, $left_table, $right_table, $topx, $columns_left_table = "*")
 {
     try {
-    $columns_left_table = convertToSQLColumns($conn, $left_table, $columns_left_table);
-    
-    $sql = "SELECT $columns_left_table, COUNT($right_table.id) AS `{$right_table}_count`
+        $columns_left_table = convertToSQLColumns($conn, $left_table, $columns_left_table);
+
+        $sql = "SELECT $columns_left_table, COUNT($right_table.id) AS `{$right_table}_count`
             FROM $left_table 
             LEFT JOIN $right_table ON $left_table.id = `$right_table`.`{$left_table}_id`
             GROUP BY $left_table.id 
             ORDER BY `{$right_table}_count` DESC, $left_table.`name` ASC LIMIT :topx";
-    $stmt = $conn->prepare($sql);
-    $stmt->bindParam(':topx', $topx, PDO::PARAM_INT);
+        $stmt = $conn->prepare($sql);
+        $stmt->bindParam(':topx', $topx, PDO::PARAM_INT);
 
-   
+
         $stmt->execute();
         $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
         http_response_code(200); // success

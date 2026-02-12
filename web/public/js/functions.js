@@ -1,13 +1,15 @@
-function fetchBeerWithLikes(zoekterm = "") {
+zoekterm = document.getElementById("zoekveld").value;
+
+function fetchBeersWithLikes(zoekterm = "") {
     fetch(`${API_BASE}/beers/likes?include=relation_counts&search=${encodeURIComponent(zoekterm)}`)
         .then(res => res.json())
-        .then(fetched_beer => {
-            if (fetched_beer.error != null) {
-                document.getElementById("bier-list").innerHTML = "Dit biertje bestaat niet!";
+        .then(fetched_beers => {
+            if (fetched_beers.error != null) {
+                document.getElementById("bier-list").innerHTML = "Er zijn geen resultaten voor deze zoekterm!";
                 return;
             }
-            console.log(fetched_beer);
-            showTable(fetched_beer);
+            console.log(fetched_beers);
+            showTable(fetched_beers);
         })
         .catch(error => console.error('Error fetching data:', error));
 }
@@ -15,15 +17,17 @@ function fetchBeerWithLikes(zoekterm = "") {
 
 // Niet vergeten: Ik moet er nog voor zorgen dat ik na het fetchen van de data de like knop niet klikbaar maak, 
 // zodat ik niet meerdere likes kan geven aan hetzelfde biertje zonder de eerdere fetch te hebben afgerond.
-function likeBeer(isArray, id) {
-    let clicked_button = document.getElementById(`like-button-${id}`);
-    console.log(clicked_button);
-    clicked_button.disabled = true;
+function likeBeer(id) {
+    //let clicked_button = document.getElementById(`like-button-${id}`);
+    //console.log(clicked_button);
+    //clicked_button.disabled = true;
 
-    fetch(`${API_BASE}/beers/${encodeURIComponent(id)}/likes`,
+    //api/<collection_a>/<collection_b>/<id>
+    fetch(`${API_BASE}/likes`,
         {
             method: "POST",
-            headers: { "content-type": "application/json; charset=UTF-8" }
+            headers: { "content-type": "application/json; charset=UTF-8" },
+            body: JSON.stringify({ beer_id: id })
         })
         .then(res => res.json())
         .then(fetched_result => {
@@ -32,13 +36,16 @@ function likeBeer(isArray, id) {
                 return;
             }
 
-            if (isArray) {
+            if (!zoekterm || !zoekterm.trim()) {
                 fetchBeersWithLikes();
-                fetchTopxLikedBeer(topx);
-            } else {
-                fetchBeerWithLikes(id);
-                fetchTopxLikedBeer(topx);
+               
+            } 
+            else 
+            {
+                fetchBeersWithLikes(zoekterm);
             }
+
+             fetchTopxLikedBeer(topx);
 
             console.log(fetched_result.message);
 
@@ -95,24 +102,17 @@ function showTable(data) {
     html += "</thead>"
     html += "<tbody>";
 
-    if (Array.isArray(data)) {
-        for (let i = 0; i < data.length; i++) {
-            html += "<tr>";
-            html += `<td>${data[i].beer_name}</td>`;
-            html += `<td>${data[i].beer_brewer}</td>`;
-            html += `<td>${data[i].likes_count} <button id="like-button-${data[i].id}" class="button-heart" onclick="likeBeer(true, ${data[i].id})"><i class="fa-regular fa-heart like-heart"></i></button></td>`;
-            html += "</tr>";
-        }
-    }
-    else {
+
+    for (let i = 0; i < data.length; i++) {
         html += "<tr>";
-        html += `<td>${data.beer_name}</td>`;
-        html += `<td>${data.beer_brewer}</td>`;
-        html += `<td>${data.likes_count} <button id="like-button-${data.id}" class="button-heart" onclick="likeBeer(false, ${data.id})"><i class="fa-regular fa-heart like-heart"></i></button></td>`;
+        html += `<td>${data[i].beer_name}</td>`;
+        html += `<td>${data[i].beer_brewer}</td>`;
+        html += `<td>${data[i].likes_count} <button id="like-button-${data[i].beer_id}" class="button-heart" onclick="likeBeer(${data[i].beer_id})"><i class="fa-regular fa-heart like-heart"></i></button></td>`;
         html += "</tr>";
     }
+
     html += "</tbody>";
     html += "</table>";
     document.getElementById("bier-list").innerHTML = html;
     console.log("Bieren geladen");
-}
+}       
