@@ -2,8 +2,9 @@
 // link std.stegion.nl mysqli https://std.stegion.nl/api_rest/api_restA_mysqli.txt
 // link std.stegion.nl pdo https://std.stegion.nl/api_rest/api_restA_pdo.txt
 
-header('Content-Type: application/json');
+require_once($root . '/src/helpers/sql_helpers.php');
 
+header('Content-Type: application/json');
 
 // Returns all resources
 function all($conn, $table)
@@ -14,7 +15,12 @@ function all($conn, $table)
     try {
         $stmt->execute();
         $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        http_response_code(200); // success
+        http_response_code(response_code: 200); // success
+
+        if (empty($result)) {
+            return json_encode(["message" => "No resources found"]);
+        }
+
         return json_encode($result);
     } catch (PDOException $e) {
         http_response_code(500); // server error
@@ -55,12 +61,14 @@ function create($conn, $table)
     $data = json_decode($raw_data, true);
 
     try {
-        $stmt = $conn->prepare("SELECT COLUMN_NAME, IS_NULLABLE, COLUM_DEFAULT FROM
-    INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :table");
+        $stmt = $conn->prepare("SELECT COLUMN_NAME, IS_NULLABLE, COLUMN_DEFAULT, DATA_TYPE   
+                                FROM INFORMATION_SCHEMA.COLUMNS 
+                                WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :`table`");
 
-        $stmt->execute(['table' => $table]);
+        $stmt->bindValue(':table', $table, PDO::PARAM_STR);
+        $stmt->execute();
+
         $columns = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
         $required_columns = [];
 
         foreach ($columns as $col) {
@@ -83,23 +91,30 @@ function create($conn, $table)
             }
         }
 
-        if (!empty($missing_columns)) 
-        {
-             http_response_code(400); // Bad Request
-             return json_encode(["error" => "Missing required fields: " . implode(", ", $missing_columns)]);
+        if (!empty($missing_columns)) {
+            http_response_code(400); // Bad Request
+            return json_encode(["error" => "Missing required fields: " . implode(", ", $missing_columns)]);
         }
 
-        $sql = "INSERT INTO $table (\`naam\`, \`brouwer\`, \`type\`, \`gisting\`, \`perc\`, \`inkoop_prijs\`)
-    VALUES (:naam, :brouwer, :type, :gisting, :perc, :inkoop_prijs);";
+        $columns_in_sql = implode(", ", $required_columns);
+        $placeholders_sql =  ":" . implode(", :", $required_columns);
+
+        $sql = "INSERT INTO $table ($columns_in_sql)
+                VALUES ($placeholders_sql);";
         $stmt = $conn->prepare($sql);
 
-        $stmt->bindValue(':naam', $data['naam'], PDO::PARAM_STR);
-        $stmt->bindValue(':brouwer', $data['brouwer'], PDO::PARAM_STR);
-        $stmt->bindValue(':type', $data['type'], PDO::PARAM_STR);
-        $stmt->bindValue(':gisting', $data['gisting'], PDO::PARAM_STR);
-        $stmt->bindValue(':perc', (float)$data['perc']);
-        $stmt->bindValue(':inkoop_prijs', (float)$data['inkoop_prijs']);
-
+        foreach ($required_columns as $column) {
+            $column_type = $col['DATA_TYPE'];
+            if ($column_type === 'varchar' || $column_type === 'text') {
+                $stmt->bindValue(":$column", $data[$column], PDO::PARAM_STR);
+            } elseif ($column_type === 'int') {
+                $stmt->bindValue(":$column", (int)$data[$column], PDO::PARAM_INT);
+            } elseif ($column_type === 'decimal' || $column_type === 'float') {
+                $stmt->bindValue(":$column", (float)$data[$column]);
+            } else {
+                $stmt->bindValue(":$column", $data[$column]);
+            }
+        }
 
         $stmt->execute();
         $id = (int)$conn->lastInsertId();
@@ -178,20 +193,25 @@ function delete($conn, $table, $id)
 }
 
 // Returns all resources with their related resource
-function allWithRelation($conn, $left_table, $right_table)
+function allWithRelation($conn, $left_table, $right_table, $columns_left_table = "*", $columns_right_table = "*")
 {
-    $sql = "SELECT *
-            FROM $left_table 
-            LEFT JOIN $right_table ON $left_table.id = `$right_table`.$left_table . '_id';";
-    $stmt = $conn->prepare($sql);
     try {
+        $columns_left_table = convertToSQLColumns($conn, $left_table, $columns_left_table);
+        $columns_right_table = convertToSQLColumns($conn, $right_table, $columns_right_table);
+
+        $sql = "SELECT $columns_left_table, $columns_right_table
+            FROM `$left_table`
+            LEFT JOIN `$right_table`
+            ON `$left_table`.`id` = `$right_table`.`{$left_table}_id`
+            ORDER BY `$left_table`.`id` ASC;";
+
+        $stmt = $conn->prepare($sql);
         $stmt->execute();
         $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        if(empty($result))
-        {
-             http_response_code(response_code: 404); // not found
-             return json_encode(["message" => "No resources found"]);
+        if (empty($result)) {
+            http_response_code(response_code: 404); // not found
+            return json_encode(["message" => "No resources found"]);
         }
 
         http_response_code(200); // success
@@ -204,21 +224,23 @@ function allWithRelation($conn, $left_table, $right_table)
 
 
 // Returns all resources with the amount of related resources
-function allWithRelationCounts($conn, $left_table, $right_table)
+function allWithRelationCounts($conn, $left_table, $right_table, $columns_left_table = "*")
 {
-    $sql = "SELECT $left_table.*, COUNT($right_table.id) AS `$right_table`_count
-            FROM $left_table 
-            LEFT JOIN $right_table ON $left_table.id = `$right_table`.$left_table . '_id'
-            GROUP BY $left_table.id";
-    $stmt = $conn->prepare($sql);
     try {
+        $columns_left_table = convertToSQLColumns($conn, $left_table, $columns_left_table);
+
+        $sql = "SELECT $columns_left_table, COUNT(`$right_table`.`id`) AS `{$right_table}_count`
+            FROM `$left_table` 
+            LEFT JOIN `$right_table`  ON `$left_table`.`id` = `$right_table`.`{$left_table}_id`
+            GROUP BY `$left_table`.`id`";
+        $stmt = $conn->prepare($sql);
+
         $stmt->execute();
         $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        if(empty($result))
-        {
-             http_response_code(response_code: 404); // not found
-             return json_encode(["message" => "No resources found"]);
+        if (empty($result)) {
+            http_response_code(response_code: 404); // not found
+            return json_encode(["message" => "No resources found"]);
         }
 
         http_response_code(200); // success
@@ -230,19 +252,22 @@ function allWithRelationCounts($conn, $left_table, $right_table)
 }
 
 // Returns one resource with their related resource
-function showWithRelation($conn, $left_table, $right_table, $id)
+function showWithRelation($conn, $left_table, $right_table, $id, $columns_left_table = "*", $columns_right_table = "*")
 {
-    $sql = "SELECT $left_table.*, COUNT($right_table.id) AS `$right_table`_count
-            FROM $left_table 
-            LEFT JOIN $right_table ON $left_table.id = `$right_table`.$left_table . '_id'
-            WHERE $left_table.id = :id 
-            GROUP BY $left_table.id";
-    $stmt = $conn->prepare($sql);
-    $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-
     try {
+        $columns_left_table = convertToSQLColumns($conn, $left_table, $columns_left_table);
+        $columns_right_table = convertToSQLColumns($conn, $right_table, $columns_right_table);
+
+
+        $sql = "SELECT $columns_left_table, $columns_right_table
+            FROM $left_table 
+            LEFT JOIN $right_table ON $left_table.id = `$right_table`.`{$left_table}_id`
+            WHERE $left_table.id = :id;";
+        $stmt = $conn->prepare($sql);
+        $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+
         $stmt->execute();
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         if ($result != false) {
             http_response_code(200); // success
@@ -258,17 +283,19 @@ function showWithRelation($conn, $left_table, $right_table, $id)
 }
 
 // Returns one resource with the amount of related resources
-function showWithRelationCounts($conn, $left_table, $right_table, $id)
+function showWithRelationCounts($conn, $left_table, $right_table, $id, $columns_left_table = "*")
 {
-    $sql = "SELECT $left_table.*, COUNT($right_table.id) AS `$right_table`_count
+    try {
+        $columns_left_table = convertToSQLColumns($conn, $left_table, $columns_left_table);
+
+        $sql = "SELECT $columns_left_table, COUNT($right_table.id) AS `{$right_table}_count`
             FROM $left_table 
-            LEFT JOIN $right_table ON $left_table.id = `$right_table`.$left_table . '_id'
+            LEFT JOIN $right_table ON $left_table.id = `$right_table`.`{$left_table}_id`
             WHERE $left_table.id = :id 
             GROUP BY $left_table.id";
-    $stmt = $conn->prepare($sql);
-    $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+        $stmt = $conn->prepare($sql);
+        $stmt->bindParam(':id', $id, PDO::PARAM_INT);
 
-    try {
         $stmt->execute();
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -288,9 +315,9 @@ function showWithRelationCounts($conn, $left_table, $right_table, $id)
 // Returns found resource(s) with their related resource
 function findWithRelation($conn, $left_table, $right_table, $search_on_name)
 {
-    $sql = "SELECT $left_table.*, COUNT($right_table.id)  AS `$right_table`_count
+    $sql = "SELECT $left_table.*, COUNT($right_table.id) AS `{$right_table}_count`
             FROM $left_table 
-            LEFT JOIN $right_table ON $left_table.id = `$right_table`.$left_table . '_id'
+            LEFT JOIN $right_table ON $left_table.id = `$right_table`.`{$left_table}_id`
             WHERE $left_table.name LIKE :search 
             GROUP BY $left_table.id";
     $stmt = $conn->prepare($sql);
@@ -318,9 +345,9 @@ function findWithRelation($conn, $left_table, $right_table, $search_on_name)
 // Returns found resource(s) with the amount of related resources
 function findWithRelationCounts($conn, $left_table, $right_table, $search_on_name)
 {
-    $sql = "SELECT $left_table.*, COUNT($right_table.id)  AS `$right_table`_count
+    $sql = "SELECT $left_table.*, COUNT($right_table.id)  AS `{$right_table}_count`
             FROM $left_table 
-            LEFT JOIN $right_table ON $left_table.id = `$right_table`.$left_table . '_id'
+            LEFT JOIN $right_table ON $left_table.id = `$right_table`.`{$left_table}_id`
             WHERE $left_table.name LIKE :search 
             GROUP BY $left_table.id";
     $stmt = $conn->prepare($sql);
@@ -346,17 +373,20 @@ function findWithRelationCounts($conn, $left_table, $right_table, $search_on_nam
 
 
 // Shows the top x resources with the biggest amount of related resources
-function showTopxWithRelationCounts($conn, $table_left, $table_right, $topx)
+function showTopxWithRelationCounts($conn, $left_table, $right_table, $topx, $columns_left_table = "*")
 {
-    $sql = "SELECT $table_left.*, COUNT($table_right.id) AS `$table_right`_count
-            FROM $table_left 
-            LEFT JOIN $table_right ON $table_left.id = `$table_right`.$table_left . '_id'
-            GROUP BY $table_left.id 
-            ORDER BY `$table_right`_count DESC, $table_left.`name` ASC LIMIT :topx";
+    try {
+    $columns_left_table = convertToSQLColumns($conn, $left_table, $columns_left_table);
+    
+    $sql = "SELECT $columns_left_table, COUNT($right_table.id) AS `{$right_table}_count`
+            FROM $left_table 
+            LEFT JOIN $right_table ON $left_table.id = `$right_table`.`{$left_table}_id`
+            GROUP BY $left_table.id 
+            ORDER BY `{$right_table}_count` DESC, $left_table.`name` ASC LIMIT :topx";
     $stmt = $conn->prepare($sql);
     $stmt->bindParam(':topx', $topx, PDO::PARAM_INT);
 
-    try {
+   
         $stmt->execute();
         $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
         http_response_code(200); // success

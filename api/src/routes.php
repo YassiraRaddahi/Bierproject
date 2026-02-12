@@ -13,23 +13,20 @@ $method = $_SERVER['REQUEST_METHOD'];
 
 switch ($method) {
     case "GET":
-        // endpoint api/<collection>
+        // endpoint api/<collection>     ---- e.g. api/beers
         if (preg_match('#^(?P<collection>[A-Za-z_$][A-Za-z0-9_$]{0,63})/?$#', $clean_path, $matches)) {
             $collection = $matches['collection'];
             $table = getTableName($allowed_tables, $collection);
-            
-            if($table) 
-            {
-                 echo all($conn, $table);
+
+            if ($table) {
+                echo all($conn, $table);
             }
-           
+
             break;
-            
         }
 
-        // endpoint api/<collection>/<id>
-        if (preg_match('#^(?P<collection>[A-Za-z_$][A-Za-z0-9_$]{0,63})/(?P<id>\d+)/?$#', $clean_path, $matches)) 
-        {
+        // endpoint api/<collection>/<id>   ---- e.g. api/beers/10
+        if (preg_match('#^(?P<collection>[A-Za-z_$][A-Za-z0-9_$]{0,63})/(?P<id>\d+)/?$#', $clean_path, $matches)) {
             $collection = $matches['collection'];
             $id = (int) $matches['id'];
 
@@ -37,7 +34,7 @@ switch ($method) {
             if (!$table) {
                 break;
             }
-            
+
             if ($id > 0) {
                 echo show($conn, $table, $id);
             } else {
@@ -48,38 +45,89 @@ switch ($method) {
             break;
         }
 
-        //endpoint api/<collection_a>/<collection_b>?include=<value> api/bieren/likes?include=relation_counts
-        //endpoint api/<collection_a>/<collection_b> api/bieren/likes
-        if (preg_match('#^(?P<collection_a>[A-Za-z_$][A-Za-z0-9_$]{0,63})/(?P<collection_b>[A-Za-z_$][A-Za-z0-9_$]{0,63})?$#', $clean_path, $matches)) 
-        {
+        //endpoint api/<collection_a>/<collection_b>                 ---- e.g. api/beers/likes
+        //endpoint api/<collection_a>/<collection_b>?include=<value> ---- e.g. api/beers/likes?include=relation_counts
+        if (preg_match('#^(?P<collection_a>[A-Za-z_$][A-Za-z0-9_$]{0,63})/(?P<collection_b>[A-Za-z_$][A-Za-z0-9_$]{0,63})?$#', $clean_path, $matches)) {
             $collection_a = $matches['collection_a'];
             $collection_b = $matches['collection_b'];
 
-            $table_left = getTableName($allowed_tables, $collection_a);
-            $table_right = getTableName($allowed_tables, $collection_b);
-            
-            if($table_left && $table_right && isset($_GET['include']) && $_GET['include'] === 'relation_counts')
+            $left_table = getTableName($allowed_tables, $collection_a);
+            $right_table = getTableName($allowed_tables, $collection_b);
+
+            if(!($left_table && $right_table))
             {
-                 echo allWithRelationCounts($conn, $table_left, $table_right);
+                break;
             }
-            else
-            {
-                echo allWithRelation($conn, $table_left, $table_right);
+
+            if (isset($_GET['include']) && $_GET['include'] === 'relation_counts') {
+                echo allWithRelationCounts($conn, $left_table, $right_table);
+            } else {
+                echo allWithRelation($conn, $left_table, $right_table);
             }
 
             break;
-        } 
-        //endpoint api/<collection_a>/<collection_b>/top/<id> api/bieren/likes/top/([0-9]+)
-        else if (count($segments) === 5 && filter_var($segments[4], FILTER_VALIDATE_INT) !== false) 
-        {
-            $topx = (int) $segments[4];
-            echo showTopxLikedBeer($conn, $topx);
+        }
+
+        //endpoint api/<collection_a>/<collection_b>/<id>                 ---- e.g. api/beers/likes/10
+        //endpoint api/<collection_a>/<collection_b>/<id>?include=<value> ---- e.g. api/beers/likes/10?include=relation_counts
+        if (preg_match('#^(?P<collection_a>[A-Za-z_$][A-Za-z0-9_$]{0,63})/(?P<collection_b>[A-Za-z_$][A-Za-z0-9_$]{0,63})/(?P<id>\d+)/?$#', $clean_path, $matches)) {
+            $collection_a = $matches['collection_a'];
+            $collection_b = $matches['collection_b'];
+            $id = (int) $matches['id'];
+
+            $left_table = getTableName($allowed_tables, $collection_a);
+            $right_table = getTableName($allowed_tables, $collection_b);
+
+            if(!($left_table && $right_table))
+            {
+                break;
+            }
+
+            if ($id > 0) 
+            {
+                if (isset($_GET['include']) && $_GET['include'] === 'relation_counts') 
+                {
+                    echo showWithRelationCounts($conn, $left_table, $right_table, $id);
+                } 
+                else 
+                {
+                    echo showWithRelation($conn, $left_table, $right_table, $id);
+                }
+
+            } 
+            else 
+            {
+                http_response_code(404); // Not Found
+                echo json_encode(["error" => "This resource does not exist"]);
+            }
+
             break;
-        } 
-        else 
-        {
-            http_response_code(404); // not found
-            echo json_encode(["error" => "There is no response for this url"]);
+        }
+        
+        //endpoint api/<collection_a>/<collection_b>/top/<topx>         ---- e.g. api/bieren/likes/top/([0-9]+)
+        if (preg_match('#^(?P<collection_a>[A-Za-z_$][A-Za-z0-9_$]{0,63})/(?P<collection_b>[A-Za-z_$][A-Za-z0-9_$]{0,63})/top/(?P<topx>\d+)/?$#', $clean_path, $matches)) {
+            $collection_a = $matches['collection_a'];
+            $collection_b = $matches['collection_b'];
+            $topx = (int) $matches['topx'];
+
+            $left_table = getTableName($allowed_tables, $collection_a);
+            $right_table = getTableName($allowed_tables, $collection_b);
+
+            if(!($left_table && $right_table))
+            {
+                break;
+            }
+
+            if ($topx > 0) 
+            {
+                echo showTopxWithRelationCounts($conn, $left_table, $right_table, $topx);
+            } 
+            else 
+            {
+                http_response_code(400); // Bad Request
+                echo json_encode(["error" => "Invalid integer for the top parameter. It should be a positive integer."]);
+            }
+
             break;
         }
 
@@ -87,22 +135,22 @@ switch ($method) {
         echo json_encode(["message" => "No valid endpoint is inserted"]);
         break;
     case "POST":
-         if (preg_match('#^(?P<collection>[A-Za-z_$][A-Za-z0-9_$]{0,63})/?$#', $clean_path, $matches)) {
+        // endpoint api/<collection>                                  ---- e.g. api/beers
+        if (preg_match('#^(?P<collection>[A-Za-z_$][A-Za-z0-9_$]{0,63})/?$#', $clean_path, $matches)) {
             $collection = $matches['collection'];
             $table = getTableName($allowed_tables, $collection);
-            
-            if($table) 
-            {
-                 echo create($conn, $table);
+
+            if ($table) {
+                echo create($conn, $table);
             }
-           
+
             break;
 
-//         if ($id > 0) {
-//             echo addLike($conn, $id);
-//         }
-//         break;
-            
+            //         if ($id > 0) {
+            //             echo addLike($conn, $id);
+            //         }
+            //         break;
+
         }
     case "PUT":
         if (preg_match('#^bieren/(?P<id>\d+)/?$#', $clean_path, $matches)) {
@@ -118,22 +166,28 @@ switch ($method) {
     case "PATCH":
         break;
     case "DELETE":
-        if (preg_match('#^(?P<collection>[A-Za-z_$][A-Za-z0-9_$]{0,63})/(?P<id>\d+)/?$#', $clean_path, $matches)) 
-        {
+        if (preg_match('#^(?P<collection>[A-Za-z_$][A-Za-z0-9_$]{0,63})/(?P<id>\d+)/?$#', $clean_path, $matches)) {
             $collection = $matches['collection'];
             $id = (int) $matches['id'];
             $table = getTableName($allowed_tables, $collection);
             if (!$table) {
                 break;
             }
-            
+
             if ($id > 0) {
-                echo delete($conn, $table, $id); 
+                echo delete($conn, $table, $id);
             } else {
                 http_response_code(404); // Not Found
-                echo json_encode(["error" => "This beer does not exist"]);
+                echo json_encode(["error" => "This resource does not exist"]);
             }
 
             break;
         }
+
+        http_response_code(400); // Bad Request
+        return json_encode(["error" => "deletion failed", "message" => "You need to specify which resource you want to remove"]);
+    default:
+        http_response_code(405); // Method Not Allowed 
+        echo json_encode(["error" => "This HTTP method is not allowed"]);
+        break;
 }

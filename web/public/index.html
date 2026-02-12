@@ -17,10 +17,10 @@
                 <h1 id="title">The Belgian Beer Company - <i>We Like Beer</i></h1>
                 <div id="zoekformulier">
                     <label id="zoeklabel" for="zoekveld">
-                        Zoek een biertje op id:
+                        Zoek een biertje op naam:
                     </label>
                     <input id="zoekveld" type="text" name="zoekterm">
-                    <button class="btn btn-primary" onclick="searchBeer()">Zoeken</button>
+                    <button class="btn btn-primary" onclick="searchBeerWithLikes(document.getElementById('zoekveld').value)">Zoeken</button>
                 </div>
                 <div id="top-x-container">
                     <h4 id="top-x-title"><i class="fa-solid fa-trophy trophy"></i><span id="top-x-title-text"></span>
@@ -39,6 +39,9 @@
         // Ik kan proberen de functionaliteit van het tonen 
         // van bieren algemener te maken, zodat ik er elke 
         // andere tabel mee in kan laden
+
+        const API_BASE = 'api';
+        const topx = 3;
 
         fetchBeersWithLikes();
         fetchTopxLikedBeer(topx);

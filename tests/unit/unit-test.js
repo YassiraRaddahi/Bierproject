@@ -1,5 +1,5 @@
 // test-api.js
-const API_URL = 'http://project-beer.local/api/bieren';
+const API_URL = 'http://project-beer.local/api/beers';
 
 // Kleuren voor console output
 const colors = {
@@ -57,12 +57,12 @@ async function testGetAllBeers() {
     
         // Verifieer dat de structuur klopt
         assertNotNull(data[0].id, 'Bier moet een ID hebben');
-        assertNotNull(data[0].naam, 'Bier moet een naam hebben');
-        assertNotNull(data[0].brouwer, 'Bier moet een brouwer hebben');
+        assertNotNull(data[0].name, 'Bier moet een naam hebben');
+        assertNotNull(data[0].brewer, 'Bier moet een brouwer hebben');
         assertNotNull(data[0].type, 'Bier moet een type hebben');
-        assertNotNull(data[0].gisting, 'Bier moet een gisting hebben');
+        assertNotNull(data[0].fermentation, 'Bier moet een gisting hebben');
         assertNotNull(data[0].perc, 'Bier moet een percentage hebben');
-        assertNotNull(data[0].inkoop_prijs, 'Bier moet een inkoopprijs hebben');
+        assertNotNull(data[0].purchase_price, 'Bier moet een inkoopprijs hebben');
         
         console.log(`   ${colors.cyan}Aantal bieren: ${data.length}${colors.reset}`);
         
@@ -84,14 +84,14 @@ async function testGetSingleBeer(id) {
         assertEqual(response.status, 200, 'Status code moet 200 zijn');
         assertNotNull(data.id, 'Bier moet een ID hebben');
         assertEqual(data.id, id, 'ID moet overeenkomen');
-        assertNotNull(data.naam, 'Bier moet een naam hebben');
-        assertNotNull(data.brouwer, 'Bier moet een brouwer hebben');
+        assertNotNull(data.name, 'Bier moet een naam hebben');
+        assertNotNull(data.brewer, 'Bier moet een brouwer hebben');
         assertNotNull(data.type, 'Bier moet een type hebben');
-        assertNotNull(data.gisting, 'Bier moet een gisting hebben');
+        assertNotNull(data.fermentation, 'Bier moet een gisting hebben');
         assertNotNull(data.perc, 'Bier moet een percentage hebben');
-        assertNotNull(data.inkoop_prijs, 'Bier moet een inkoopprijs hebben');
+        assertNotNull(data.purchase_price, 'Bier moet een inkoopprijs hebben');
         
-        console.log(`   ${colors.cyan}Bier: ${data.naam} (${data.brouwer})${colors.reset}`);
+        console.log(`   ${colors.cyan}Bier: ${data.name} (${data.brewer})${colors.reset}`);
         return data;
     } catch (error) {
         assert(false, `GET enkel bier gefaald: ${error.message}`);
@@ -122,12 +122,12 @@ async function testCreateBeer() {
     console.log(`\n${colors.blue}=== TEST: POST nieuw bier aanmaken ===${colors.reset}`);
     
     const newBeer = {
-        naam: 'Unit Test Bier',
-        brouwer: 'Test Brouwerij',
+        name: 'Unit Test Bier',
+        brewer: 'Test Brouwerij',
         type: 'IPA',
-        gisting: 'spontane',
+        fermentation: 'spontane',
         perc: 6.5,
-        inkoop_prijs: 2.50
+        purchase_price: 2.50
     };
     
     try {
@@ -158,11 +158,11 @@ async function testCreateBeerInvalidData() {
     console.log(`\n${colors.blue}=== TEST: POST met ongeldige data (400) ===${colors.reset}`);
     
     const invalidBeer = {
-        // naam en brouwer ontbreken (verplicht)
+        // name en brewer ontbreken (verplicht)
         type: 'IPA',
-        gisting: 'spontane',
+        fermentation: 'spontane',
         perc: 6.5,
-        inkoop_prijs: 2.50
+        purchase_price: 2.50
     };
     
     try {
@@ -192,12 +192,12 @@ async function testUpdateBeer(id) {
     console.log(`\n${colors.blue}=== TEST: PUT bier updaten (ID: ${id}) ===${colors.reset}`);
     
     const updatedBeer = {
-        naam: 'Unit Test Bier UPDATED',
-        brouwer: 'Test Brouwerij UPDATED',
+        name: 'Unit Test Bier UPDATED',
+        brewer: 'Test Brouwerij UPDATED',
         type: 'Double IPA',
-        gisting: 'lage',
+        fermentation: 'lage',
         perc: 8.5,
-        inkoop_prijs: 3.50
+        purchase_price: 3.50
     };
     
     try {
@@ -215,7 +215,7 @@ async function testUpdateBeer(id) {
         await sleep(100);
         const beer = await testGetSingleBeer(id);
         if (beer) {
-            assertEqual(beer.naam, 'Unit Test Bier UPDATED', 'Naam moet geüpdatet zijn');
+            assertEqual(beer.name, 'Unit Test Bier UPDATED', 'Naam moet geüpdatet zijn');
             assertEqual(parseFloat(beer.perc), 8.5, 'Alcohol percentage moet geüpdatet zijn');
             console.log(`   ${colors.cyan}✓ Update geverifieerd${colors.reset}`);
         }
@@ -232,11 +232,11 @@ async function testUpdateNonExistentBeer() {
     console.log(`\n${colors.blue}=== TEST: PUT niet-bestaand bier (404) ===${colors.reset}`);
     
     const beer = {
-        naam: 'Test',
-        merk: 'Test',
+        name: 'Test',
+        brewer: 'Test',
         type: 'Lager',
         alcohol: 5.0,
-        prijs: 1.50
+        price: 1.50
     };
     
     try {
