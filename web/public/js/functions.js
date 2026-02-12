@@ -1,21 +1,34 @@
-const API_BASE = 'api/bieren';
-const topx = 5;
+const API_BASE = 'api';
+const topx = 3;
 
 function searchBeer() {
     let zoekterm = document.getElementById("zoekveld").value.trim();
 
     if (zoekterm != null && /^\d+$/.test(zoekterm)) {
-        fetchBeer(zoekterm);
+        fetchBeerWithLikes(zoekterm);
         console.log(zoekterm);
     }
     else {
-        fetchBeers();
+        fetchBeersWithLikes();
         console.log(zoekterm);
     }
 }
 
-function fetchBeer(zoekterm) {
-    fetch(`${API_BASE}/${encodeURIComponent(zoekterm)}`)
+function searchBeerWithLikes() {
+    let zoekterm = document.getElementById("zoekveld").value.trim();
+
+    if (zoekterm != null && /^\d+$/.test(zoekterm)) {
+        fetchBeerWithLikes(zoekterm);
+        console.log(zoekterm);
+    }
+    else {
+        fetchBeersWithLikes();
+        console.log(zoekterm);
+    }
+}
+
+function fetchBeerWithLikes(zoekterm) {
+    fetch(`${API_BASE}/beers/likes?search=${encodeURIComponent(zoekterm)}`)
         .then(res => res.json())
         .then(fetched_beer => {
             if (fetched_beer.error != null) {
@@ -29,8 +42,8 @@ function fetchBeer(zoekterm) {
 }
 
 
-function fetchBeers() {
-    fetch(API_BASE)
+function fetchBeersWithLikes() {
+    fetch(`${API_BASE}/beers/likes`)
         .then(res => res.json())
         .then(fetched_beers => {
             console.log(fetched_beers);
@@ -46,7 +59,7 @@ function likeBeer(isArray, id) {
     console.log(clicked_button);
     clicked_button.disabled = true;
 
-    fetch(`${API_BASE}/${encodeURIComponent(id)}/likes`,
+    fetch(`${API_BASE}/beers/${encodeURIComponent(id)}/likes`,
         {
             method: "POST",
             headers: { "content-type": "application/json; charset=UTF-8" }
@@ -59,10 +72,10 @@ function likeBeer(isArray, id) {
             }
 
             if (isArray) {
-                fetchBeers();
+                fetchBeersWithLikes();
                 fetchTopxLikedBeer(topx);
             } else {
-                fetchBeer(id);
+                fetchBeerWithLikes(id);
                 fetchTopxLikedBeer(topx);
             }
 
@@ -90,7 +103,7 @@ function showTopxLikedBeer(topx, data) {
 
     for (let i = 0; i < data.length; i++) {
         if (data[i].likes > 0) {
-            html += `<p>Nr. ${i + 1} ${data[i].naam} - <b>${data[i].likes}</b> like(s)</p>`;
+            html += `<p>Nr. ${i + 1} ${data[i].name} - <b>${data[i].likes}</b> like(s)</p>`;
 
         }
         else {
@@ -124,16 +137,16 @@ function showTable(data) {
     if (Array.isArray(data)) {
         for (let i = 0; i < data.length; i++) {
             html += "<tr>";
-            html += `<td>${data[i].naam}</td>`;
-            html += `<td>${data[i].brouwer}</td>`;
+            html += `<td>${data[i].name}</td>`;
+            html += `<td>${data[i].brewer}</td>`;
             html += `<td>${data[i].likes} <button id="like-button-${data[i].id}" class="button-heart" onclick="likeBeer(true, ${data[i].id})"><i class="fa-regular fa-heart like-heart"></i></button></td>`;
             html += "</tr>";
         }
     }
     else {
         html += "<tr>";
-        html += `<td>${data.naam}</td>`;
-        html += `<td>${data.brouwer}</td>`;
+        html += `<td>${data.name}</td>`;
+        html += `<td>${data.brewer}</td>`;
         html += `<td>${data.likes} <button id="like-button-${data.id}" class="button-heart" onclick="likeBeer(false, ${data.id})"><i class="fa-regular fa-heart like-heart"></i></button></td>`;
         html += "</tr>";
     }

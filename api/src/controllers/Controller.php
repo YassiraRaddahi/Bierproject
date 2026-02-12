@@ -5,84 +5,6 @@
 header('Content-Type: application/json');
 
 
-// Returns all beers with their likes
-function showBeers($conn, $table)
-{
-    $sql = "SELECT $table.*, COUNT(likes.beer_id) as likes FROM $table LEFT JOIN likes ON $table.id = likes.beer_id GROUP BY $table.id";
-    $stmt = $conn->prepare($sql);
-
-    try {
-        $stmt->execute();
-        $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        http_response_code(200); // success
-        return json_encode($result);
-    } catch (PDOException $e) {
-        http_response_code(500); // server error
-        return json_encode(["error" => $e->getMessage()]);
-    }
-}
-
-// Returns one beer with its likes
-function showBeer($conn, $table, $id)
-{
-    $sql = "SELECT $table.*, COUNT(likes.id) as likes FROM $table LEFT JOIN likes ON $table.id = likes.beer_id WHERE $table.id = :id GROUP BY $table.id";
-    $stmt = $conn->prepare($sql);
-    $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-
-    try {
-        $stmt->execute();
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if ($result != false) {
-            http_response_code(200); // success
-            return json_encode($result);
-        } else {
-            http_response_code(404); // not found
-            return json_encode(["error" => "record does not exist"]);
-        }
-    } catch (PDOException $e) {
-        http_response_code(500); //server error
-        return json_encode(["error" => $e->getMessage()]);
-    }
-}
-
-// Adds a like resource that belongs to one beer
-function addlikes($conn, $id)
-{
-    $sql = "INSERT INTO likes (bier_id) VALUES (:id);";
-    $stmt = $conn->prepare($sql);
-    $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-
-    try {
-        $stmt->execute();
-        http_response_code(201); // Created
-        return json_encode(["message" => "Beer with id $id has been liked."]);
-    } catch (PDOException $e) {
-        http_response_code(400); // Bad Request
-        return json_encode(["error" => $e->getMessage()]);
-    }
-}
-
-// Shows the top x liked Beer
-function showTopxlikedBeer($conn, $topx)
-{
-    $sql = 'SELECT bier.*, COUNT(likes.id) as likes FROM bier LEFT JOIN likes ON bier.id = likes.bier_id
-     GROUP BY bier.id ORDER BY likes DESC, bier.naam ASC LIMIT :topx';
-    $stmt = $conn->prepare($sql);
-    $stmt->bindParam(':topx', $topx, PDO::PARAM_INT);
-
-    try {
-        $stmt->execute();
-        $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        http_response_code(200); // success
-        return json_encode($result);
-    } catch (PDOException $e) {
-        http_response_code(404); // not found
-        return json_encode(["error" => $e->getMessage()]);
-    }
-}
-
-
 // Returns all resources
 function all($conn, $table)
 {
@@ -103,7 +25,8 @@ function all($conn, $table)
 // Returns one resource
 function show($conn, $table, $id)
 {
-    $sql = "SELECT * FROM $table WHERE $table.id = :id";
+    $sql = "SELECT * FROM $table 
+            WHERE $table.id = :id";
     $stmt = $conn->prepare($sql);
     $stmt->bindParam(':id', $id, PDO::PARAM_INT);
 
@@ -116,7 +39,7 @@ function show($conn, $table, $id)
             return json_encode($result);
         } else {
             http_response_code(404); // not found
-            return json_encode(["error" => "record does not exist"]);
+            return json_encode(["error" => "This resource does not exist"]);
         }
     } catch (PDOException $e) {
         http_response_code(500); //server error
@@ -181,7 +104,7 @@ function create($conn, $table)
         $stmt->execute();
         $id = (int)$conn->lastInsertId();
 
-        $added_beer = json_decode(showBeer($conn, $table, $id));
+        $added_beer = json_decode(show($conn, $table, $id));
         http_response_code(201); // Created
 
         return json_encode([
@@ -251,5 +174,195 @@ function delete($conn, $table, $id)
     } catch (PDOException $e) {
         http_response_code(400); // Bad Request
         return json_encode(["error" => "deletion failed", "message" => $e->getMessage()]);
+    }
+}
+
+// Returns all resources with their related resource
+function allWithRelation($conn, $left_table, $right_table)
+{
+    $sql = "SELECT *
+            FROM $left_table 
+            LEFT JOIN $right_table ON $left_table.id = `$right_table`.$left_table . '_id';";
+    $stmt = $conn->prepare($sql);
+    try {
+        $stmt->execute();
+        $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        if(empty($result))
+        {
+             http_response_code(response_code: 404); // not found
+             return json_encode(["message" => "No resources found"]);
+        }
+
+        http_response_code(200); // success
+        return json_encode($result);
+    } catch (PDOException $e) {
+        http_response_code(500); // server error
+        return json_encode(["error" => $e->getMessage()]);
+    }
+}
+
+
+// Returns all resources with the amount of related resources
+function allWithRelationCounts($conn, $left_table, $right_table)
+{
+    $sql = "SELECT $left_table.*, COUNT($right_table.id) AS `$right_table`_count
+            FROM $left_table 
+            LEFT JOIN $right_table ON $left_table.id = `$right_table`.$left_table . '_id'
+            GROUP BY $left_table.id";
+    $stmt = $conn->prepare($sql);
+    try {
+        $stmt->execute();
+        $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        if(empty($result))
+        {
+             http_response_code(response_code: 404); // not found
+             return json_encode(["message" => "No resources found"]);
+        }
+
+        http_response_code(200); // success
+        return json_encode($result);
+    } catch (PDOException $e) {
+        http_response_code(500); // server error
+        return json_encode(["error" => $e->getMessage()]);
+    }
+}
+
+// Returns one resource with their related resource
+function showWithRelation($conn, $left_table, $right_table, $id)
+{
+    $sql = "SELECT $left_table.*, COUNT($right_table.id) AS `$right_table`_count
+            FROM $left_table 
+            LEFT JOIN $right_table ON $left_table.id = `$right_table`.$left_table . '_id'
+            WHERE $left_table.id = :id 
+            GROUP BY $left_table.id";
+    $stmt = $conn->prepare($sql);
+    $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+
+    try {
+        $stmt->execute();
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($result != false) {
+            http_response_code(200); // success
+            return json_encode($result);
+        } else {
+            http_response_code(404); // not found
+            return json_encode(["error" => "record does not exist"]);
+        }
+    } catch (PDOException $e) {
+        http_response_code(500); //server error
+        return json_encode(["error" => $e->getMessage()]);
+    }
+}
+
+// Returns one resource with the amount of related resources
+function showWithRelationCounts($conn, $left_table, $right_table, $id)
+{
+    $sql = "SELECT $left_table.*, COUNT($right_table.id) AS `$right_table`_count
+            FROM $left_table 
+            LEFT JOIN $right_table ON $left_table.id = `$right_table`.$left_table . '_id'
+            WHERE $left_table.id = :id 
+            GROUP BY $left_table.id";
+    $stmt = $conn->prepare($sql);
+    $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+
+    try {
+        $stmt->execute();
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($result != false) {
+            http_response_code(200); // success
+            return json_encode($result);
+        } else {
+            http_response_code(404); // not found
+            return json_encode(["error" => "record does not exist"]);
+        }
+    } catch (PDOException $e) {
+        http_response_code(500); //server error
+        return json_encode(["error" => $e->getMessage()]);
+    }
+}
+
+// Returns found resource(s) with their related resource
+function findWithRelation($conn, $left_table, $right_table, $search_on_name)
+{
+    $sql = "SELECT $left_table.*, COUNT($right_table.id)  AS `$right_table`_count
+            FROM $left_table 
+            LEFT JOIN $right_table ON $left_table.id = `$right_table`.$left_table . '_id'
+            WHERE $left_table.name LIKE :search 
+            GROUP BY $left_table.id";
+    $stmt = $conn->prepare($sql);
+    $search_param = "%$search_on_name%";
+    $stmt->bindParam(':search', $search_param, PDO::PARAM_STR);
+
+    try {
+        $stmt->execute();
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($result != false) {
+            http_response_code(200); // success
+            return json_encode($result);
+        } else {
+            http_response_code(404); // not found
+            return json_encode(["error" => "record does not exist"]);
+        }
+    } catch (PDOException $e) {
+        http_response_code(500); //server error
+        return json_encode(["error" => $e->getMessage()]);
+    }
+}
+
+// Ik moet de search uit de GET array halen in de router! Bijvoorbeeld ?search=blabla en $search = $_GET['search']
+// Returns found resource(s) with the amount of related resources
+function findWithRelationCounts($conn, $left_table, $right_table, $search_on_name)
+{
+    $sql = "SELECT $left_table.*, COUNT($right_table.id)  AS `$right_table`_count
+            FROM $left_table 
+            LEFT JOIN $right_table ON $left_table.id = `$right_table`.$left_table . '_id'
+            WHERE $left_table.name LIKE :search 
+            GROUP BY $left_table.id";
+    $stmt = $conn->prepare($sql);
+    $search_param = "%$search_on_name%";
+    $stmt->bindParam(':search', $search_param, PDO::PARAM_STR);
+
+    try {
+        $stmt->execute();
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($result != false) {
+            http_response_code(200); // success
+            return json_encode($result);
+        } else {
+            http_response_code(404); // not found
+            return json_encode(["error" => "record does not exist"]);
+        }
+    } catch (PDOException $e) {
+        http_response_code(500); //server error
+        return json_encode(["error" => $e->getMessage()]);
+    }
+}
+
+
+// Shows the top x resources with the biggest amount of related resources
+function showTopxWithRelationCounts($conn, $table_left, $table_right, $topx)
+{
+    $sql = "SELECT $table_left.*, COUNT($table_right.id) AS `$table_right`_count
+            FROM $table_left 
+            LEFT JOIN $table_right ON $table_left.id = `$table_right`.$table_left . '_id'
+            GROUP BY $table_left.id 
+            ORDER BY `$table_right`_count DESC, $table_left.`name` ASC LIMIT :topx";
+    $stmt = $conn->prepare($sql);
+    $stmt->bindParam(':topx', $topx, PDO::PARAM_INT);
+
+    try {
+        $stmt->execute();
+        $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        http_response_code(200); // success
+        return json_encode($result);
+    } catch (PDOException $e) {
+        http_response_code(404); // not found
+        return json_encode(["error" => $e->getMessage()]);
     }
 }

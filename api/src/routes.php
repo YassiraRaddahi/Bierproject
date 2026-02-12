@@ -13,6 +13,7 @@ $method = $_SERVER['REQUEST_METHOD'];
 
 switch ($method) {
     case "GET":
+        // endpoint api/<collection>
         if (preg_match('#^(?P<collection>[A-Za-z_$][A-Za-z0-9_$]{0,63})/?$#', $clean_path, $matches)) {
             $collection = $matches['collection'];
             $table = getTableName($allowed_tables, $collection);
@@ -26,33 +27,49 @@ switch ($method) {
             
         }
 
+        // endpoint api/<collection>/<id>
         if (preg_match('#^(?P<collection>[A-Za-z_$][A-Za-z0-9_$]{0,63})/(?P<id>\d+)/?$#', $clean_path, $matches)) 
         {
             $collection = $matches['collection'];
+            $id = (int) $matches['id'];
+
             $table = getTableName($allowed_tables, $collection);
             if (!$table) {
                 break;
             }
             
-            $id = (int) $matches['id'];
-            
             if ($id > 0) {
                 echo show($conn, $table, $id);
             } else {
                 http_response_code(404); // Not Found
-                echo json_encode(["error" => "This beer does not exist"]);
+                echo json_encode(["error" => "This resource does not exist"]);
             }
 
             break;
         }
 
-        //api/bieren/likes
-        if (preg_match('#^(?P<collection>[A-Za-z_$][A-Za-z0-9_$]{0,63})/?$#', $clean_path, $matches)) 
+        //endpoint api/<collection_a>/<collection_b>?include=<value> api/bieren/likes?include=relation_counts
+        //endpoint api/<collection_a>/<collection_b> api/bieren/likes
+        if (preg_match('#^(?P<collection_a>[A-Za-z_$][A-Za-z0-9_$]{0,63})/(?P<collection_b>[A-Za-z_$][A-Za-z0-9_$]{0,63})?$#', $clean_path, $matches)) 
         {
-            echo showLikes($conn);
+            $collection_a = $matches['collection_a'];
+            $collection_b = $matches['collection_b'];
+
+            $table_left = getTableName($allowed_tables, $collection_a);
+            $table_right = getTableName($allowed_tables, $collection_b);
+            
+            if($table_left && $table_right && isset($_GET['include']) && $_GET['include'] === 'relation_counts')
+            {
+                 echo allWithRelationCounts($conn, $table_left, $table_right);
+            }
+            else
+            {
+                echo allWithRelation($conn, $table_left, $table_right);
+            }
+
             break;
         } 
-        //api/bieren/likes/top/([0-9]+)
+        //endpoint api/<collection_a>/<collection_b>/top/<id> api/bieren/likes/top/([0-9]+)
         else if (count($segments) === 5 && filter_var($segments[4], FILTER_VALIDATE_INT) !== false) 
         {
             $topx = (int) $segments[4];
@@ -80,6 +97,11 @@ switch ($method) {
             }
            
             break;
+
+//         if ($id > 0) {
+//             echo addLike($conn, $id);
+//         }
+//         break;
             
         }
     case "PUT":
@@ -115,42 +137,3 @@ switch ($method) {
             break;
         }
 }
-
-// Uit likes Api
-
-// $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-// $indexApi = strpos($path, '/api');
-// $apiPath = substr($path, $indexApi);
-// $segments = explode('/', trim($apiPath, '/'));
-// //echo json_encode($segments);
-
-// $method = $_SERVER['REQUEST_METHOD'];
-
-// switch ($method) {
-//     case "GET":
-//         //api/bieren/likes
-//         if (count($segments) === 3 && $segments[2] === 'likes') 
-//         {
-//             echo showLikes($conn);
-//             break;
-//         } 
-//         //api/bieren/likes/top/([0-9]+)
-//         else if (count($segments) === 5 && filter_var($segments[4], FILTER_VALIDATE_INT) !== false) 
-//         {
-//             $topx = (int) $segments[4];
-//             echo showTopxLikedBeer($conn, $topx);
-//             break;
-//         } 
-//         else 
-//         {
-//             http_response_code(404); // not found
-//             echo json_encode(["error" => "There is no response for this url"]);
-//             break;
-//         }
-//     case "POST":
-//         $id = (int) array_slice($segments, -2, 1)[0];
-//         if ($id > 0) {
-//             echo addLike($conn, $id);
-//         }
-//         break;
-// }
